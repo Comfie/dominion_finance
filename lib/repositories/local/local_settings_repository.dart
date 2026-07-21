@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../data/local/database.dart' as db;
 import '../../models/settings.dart';
@@ -15,21 +14,41 @@ import '../settings_repository.dart';
 /// defaults the server uses (monthlyIncome 0, payday 25, currency 'ZAR',
 /// all notification toggles on). `updateSettings` upserts the row.
 class LocalSettingsRepository implements SettingsRepository {
-  final db.AppDatabase _database;
-  final Uuid _uuid;
+  /// Fixed primary key for the single settings row. Combined with an
+  /// insert-or-ignore, this makes concurrent first-reads race-safe: two
+  /// callers both inserting defaults collide on the key instead of creating
+  /// duplicate rows (which would make getSingleOrNull throw forever after).
+  static const String settingsRowId = 'local-settings';
 
-  LocalSettingsRepository(this._database, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
+  final db.AppDatabase _database;
+
+  LocalSettingsRepository(this._database);
+
+  /// Returns the single settings row, creating it with defaults if missing
+  /// and collapsing duplicates left behind by the historical check-then-insert
+  /// race (keeps the oldest row so any user-edited values survive).
+  Future<db.SettingsTableData> _ensureSingleRow() async {
+    return _database.transaction(() async {
+      final rows = await _database.select(_database.settingsTable).get();
+      if (rows.length == 1) return rows.single;
+
+      if (rows.isEmpty) {
+        await _database
+            .into(_database.settingsTable)
+            .insert(db.SettingsTableCompanion.insert(id: settingsRowId), mode: InsertMode.insertOrIgnore);
+        return (_database.select(_database.settingsTable)..where((tbl) => tbl.id.equals(settingsRowId))).getSingle();
+      }
+
+      final keep = rows.first;
+      await (_database.delete(_database.settingsTable)..where((tbl) => tbl.id.isNotValue(keep.id))).go();
+      return keep;
+    });
+  }
 
   @override
   Future<Settings> getSettings() async {
     try {
-      final existing = await _database.select(_database.settingsTable).getSingleOrNull();
-      if (existing != null) {
-        return _toModel(existing);
-      }
-
-      final row = await _createDefaultRow();
-      return _toModel(row);
+      return _toModel(await _ensureSingleRow());
     } catch (e) {
       throw const RepositoryException('Failed to load settings');
     }
@@ -38,8 +57,7 @@ class LocalSettingsRepository implements SettingsRepository {
   @override
   Future<Settings> updateSettings(Map<String, dynamic> data) async {
     try {
-      var existing = await _database.select(_database.settingsTable).getSingleOrNull();
-      existing ??= await _createDefaultRow();
+      final existing = await _ensureSingleRow();
 
       final companion = db.SettingsTableCompanion(
         monthlyIncome: data.containsKey('monthlyIncome')
@@ -66,28 +84,20 @@ class LocalSettingsRepository implements SettingsRepository {
 
       final count = await (_database.update(
         _database.settingsTable,
-      )..where((tbl) => tbl.id.equals(existing!.id))).write(companion);
+      )..where((tbl) => tbl.id.equals(existing.id))).write(companion);
       if (count == 0) {
         throw const RepositoryException('Failed to update settings');
       }
 
       final updated = await (_database.select(
         _database.settingsTable,
-      )..where((tbl) => tbl.id.equals(existing!.id))).getSingle();
+      )..where((tbl) => tbl.id.equals(existing.id))).getSingle();
       return _toModel(updated);
     } on RepositoryException {
       rethrow;
     } catch (e) {
       throw const RepositoryException('Failed to update settings');
     }
-  }
-
-  Future<db.SettingsTableData> _createDefaultRow() async {
-    final companion = db.SettingsTableCompanion.insert(id: _uuid.v4());
-    await _database.into(_database.settingsTable).insert(companion);
-    return (_database.select(
-      _database.settingsTable,
-    )..where((tbl) => tbl.id.equals(companion.id.value))).getSingle();
   }
 
   Settings _toModel(db.SettingsTableData row) {

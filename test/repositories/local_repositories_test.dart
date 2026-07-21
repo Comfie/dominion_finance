@@ -158,5 +158,40 @@ void main() {
       expect(reloaded.monthlyIncome, 25000.0);
       expect(reloaded.currency, 'USD');
     });
+
+    test('heals duplicate rows left by concurrent first reads', () async {
+      final repository = LocalSettingsRepository(database);
+
+      // Reproduce the historical check-then-insert race: multiple "single"
+      // rows in the table, which used to make every read/write throw
+      // (getSingleOrNull -> StateError) and the settings screen go static.
+      await database.into(database.settingsTable).insert(SettingsTableCompanion.insert(id: 'row-1'));
+      await database.into(database.settingsTable).insert(SettingsTableCompanion.insert(id: 'row-2'));
+      await database.into(database.settingsTable).insert(SettingsTableCompanion.insert(id: 'row-3'));
+
+      final settings = await repository.getSettings();
+      expect(settings.id, 'row-1', reason: 'keeps the oldest row');
+
+      final remaining = await database.select(database.settingsTable).get();
+      expect(remaining, hasLength(1));
+
+      final updated = await repository.updateSettings({'monthlyIncome': 12345.0});
+      expect(updated.monthlyIncome, 12345.0);
+      expect(updated.id, 'row-1');
+    });
+
+    test('concurrent first reads create exactly one row', () async {
+      final repository = LocalSettingsRepository(database);
+
+      final results = await Future.wait([
+        repository.getSettings(),
+        repository.getSettings(),
+        repository.getSettings(),
+      ]);
+
+      expect(results.map((s) => s.id).toSet(), hasLength(1));
+      final rows = await database.select(database.settingsTable).get();
+      expect(rows, hasLength(1));
+    });
   });
 }
