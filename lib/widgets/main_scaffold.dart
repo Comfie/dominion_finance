@@ -1,0 +1,155 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../core/theme.dart';
+
+class MainScaffold extends StatelessWidget {
+  final Widget child;
+
+  const MainScaffold({super.key, required this.child});
+
+  int _getCurrentIndex(BuildContext context) {
+    final location = GoRouterState.of(context).matchedLocation;
+    switch (location) {
+      case '/':
+        return 0;
+      case '/expenses':
+        return 1;
+      case '/obligations':
+        return 2;
+      case '/goals':
+        return 3;
+      case '/settings':
+        return 4;
+      default:
+        return 0;
+    }
+  }
+
+  void _onTap(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        context.go('/');
+        break;
+      case 1:
+        context.go('/expenses');
+        break;
+      case 2:
+        context.go('/obligations');
+        break;
+      case 3:
+        context.go('/goals');
+        break;
+      case 4:
+        context.go('/settings');
+        break;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: child,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _NavItem(
+                  icon: Icons.dashboard_rounded,
+                  label: 'Home',
+                  isSelected: _getCurrentIndex(context) == 0,
+                  onTap: () => _onTap(context, 0),
+                ),
+                _NavItem(
+                  icon: Icons.receipt_long_rounded,
+                  label: 'Expenses',
+                  isSelected: _getCurrentIndex(context) == 1,
+                  onTap: () => _onTap(context, 1),
+                ),
+                _NavItem(
+                  icon: Icons.payments_rounded,
+                  label: 'Bills',
+                  isSelected: _getCurrentIndex(context) == 2,
+                  onTap: () => _onTap(context, 2),
+                ),
+                _NavItem(
+                  icon: Icons.savings_rounded,
+                  label: 'Goals',
+                  isSelected: _getCurrentIndex(context) == 3,
+                  onTap: () => _onTap(context, 3),
+                ),
+                _NavItem(
+                  icon: Icons.settings_rounded,
+                  label: 'Settings',
+                  isSelected: _getCurrentIndex(context) == 4,
+                  onTap: () => _onTap(context, 4),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? AppTheme.primary : AppTheme.textMuted,
+              size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                color: isSelected ? AppTheme.primary : AppTheme.textMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
