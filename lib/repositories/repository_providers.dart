@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/storage_mode.dart';
+import '../data/local/backup_service.dart';
 import '../data/local/database.dart';
 import '../providers/auth_provider.dart' show apiClientProvider;
 import 'ai_repository.dart';
@@ -106,4 +107,10 @@ final localPersonsRepositoryProvider = Provider<PersonsRepository>((ref) {
 
 final localSettingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   return LocalSettingsRepository(ref.read(databaseProvider));
+});
+
+/// JSON export/import (backup/restore) for local mode's data, backed by the
+/// same [databaseProvider] instance the local repositories use.
+final backupServiceProvider = Provider<BackupService>((ref) {
+  return BackupService(ref.read(databaseProvider));
 });

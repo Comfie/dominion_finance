@@ -3,14 +3,189 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/storage_mode.dart';
 import '../../core/theme.dart';
+import '../../data/local/backup_io.dart';
+import '../../models/settings.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/expenses_provider.dart';
+import '../../providers/goals_provider.dart';
+import '../../providers/incomes_provider.dart';
+import '../../providers/obligations_provider.dart';
+import '../../providers/persons_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../repositories/repository_providers.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final _backupIo = const BackupIo();
+
+  @override
+  void initState() {
+    super.initState();
+    // Mirrors the pattern used by other screens (expenses, goals, family
+    // management): each screen ensures its own data is loaded on entry
+    // rather than relying solely on the dashboard's initial load.
+    Future.microtask(() {
+      ref.read(settingsProvider.notifier).loadSettings();
+    });
+  }
+
+  Future<void> _editMonthlyIncome(Settings? settings) async {
+    await showDialog(
+      context: context,
+      builder: (context) => _EditFieldDialog(
+        title: 'Monthly Income',
+        label: 'Monthly Income',
+        icon: Icons.attach_money_rounded,
+        initialValue: settings?.monthlyIncome.toString() ?? '',
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        validator: (value) {
+          if (value == null || value.trim().isEmpty) return 'Please enter an amount';
+          final parsed = double.tryParse(value.trim());
+          if (parsed == null || parsed < 0) return 'Please enter a valid amount';
+          return null;
+        },
+        buildData: (value) => {'monthlyIncome': double.parse(value)},
+      ),
+    );
+  }
+
+  Future<void> _editPayday(Settings? settings) async {
+    await showDialog(
+      context: context,
+      builder: (context) => _EditFieldDialog(
+        title: 'Payday',
+        label: 'Day of month (1-31)',
+        icon: Icons.calendar_today_rounded,
+        initialValue: settings?.payday.toString() ?? '',
+        keyboardType: TextInputType.number,
+        validator: (value) {
+          if (value == null || value.trim().isEmpty) return 'Please enter a day';
+          final parsed = int.tryParse(value.trim());
+          if (parsed == null || parsed < 1 || parsed > 31) {
+            return 'Enter a day between 1 and 31';
+          }
+          return null;
+        },
+        buildData: (value) => {'payday': int.parse(value)},
+      ),
+    );
+  }
+
+  Future<void> _editMonthlyBudget(Settings? settings) async {
+    await showDialog(
+      context: context,
+      builder: (context) => _EditFieldDialog(
+        title: 'Monthly Budget',
+        label: 'Monthly Budget (optional)',
+        icon: Icons.account_balance_wallet_rounded,
+        initialValue: settings?.monthlyBudget?.toString() ?? '',
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        showClear: true,
+        validator: (value) {
+          if (value == null || value.trim().isEmpty) return null;
+          final parsed = double.tryParse(value.trim());
+          if (parsed == null || parsed < 0) return 'Please enter a valid amount';
+          return null;
+        },
+        buildData: (value) =>
+            {'monthlyBudget': value.trim().isEmpty ? null : double.parse(value.trim())},
+      ),
+    );
+  }
+
+  Future<void> _editCurrency(Settings? settings) async {
+    await showDialog(
+      context: context,
+      builder: (context) => _EditCurrencyDialog(currentCurrency: settings?.currency ?? 'ZAR'),
+    );
+  }
+
+  Future<void> _exportData() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final json = await ref.read(backupServiceProvider).exportJson();
+      await _backupIo.shareBackup(json);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Failed to export data'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _importData() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import Data'),
+        content: const Text(
+          'This merges the backup into your current data. Entries with matching ids are overwritten.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final json = await _backupIo.pickBackupJson();
+      if (json == null) return;
+
+      final result = await ref.read(backupServiceProvider).importJson(json);
+
+      // Refresh in-memory state so the UI reflects the restored data,
+      // mirroring how each screen loads its own data on entry.
+      await Future.wait([
+        ref.read(settingsProvider.notifier).loadSettings(),
+        ref.read(expensesProvider.notifier).loadExpenses(),
+        ref.read(incomesProvider.notifier).loadIncomes(),
+        ref.read(obligationsProvider.notifier).loadObligations(),
+        ref.read(goalsProvider.notifier).loadGoals(),
+        ref.read(personsProvider.notifier).loadPersons(),
+      ]);
+
+      if (!mounted) return;
+      final summary = result.imported.entries
+          .where((entry) => entry.value > 0)
+          .map((entry) => '${entry.value} ${entry.key}')
+          .join(', ');
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(summary.isEmpty ? 'Backup imported' : 'Imported $summary'),
+          backgroundColor: AppTheme.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final settingsState = ref.watch(settingsProvider);
     final settings = settingsState.settings;
@@ -46,6 +221,18 @@ class SettingsScreen extends ConsumerWidget {
                         }
                       },
                     ),
+                    _SettingsTile(
+                      icon: Icons.upload_file_rounded,
+                      title: 'Export data',
+                      subtitle: 'Save a backup of your data as JSON',
+                      onTap: _exportData,
+                    ),
+                    _SettingsTile(
+                      icon: Icons.download_rounded,
+                      title: 'Import data',
+                      subtitle: 'Restore from a backup file',
+                      onTap: _importData,
+                    ),
                   ]
                 : [
                     _SettingsTile(
@@ -76,25 +263,19 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.attach_money_rounded,
                 title: 'Monthly Income',
                 subtitle: '${settings?.currencySymbol ?? 'R'} ${settings?.monthlyIncome.toStringAsFixed(2) ?? '0.00'}',
-                onTap: () {
-                  // TODO: Open income edit dialog
-                },
+                onTap: () => _editMonthlyIncome(settings),
               ),
               _SettingsTile(
                 icon: Icons.calendar_today_rounded,
                 title: 'Payday',
                 subtitle: 'Day ${settings?.payday ?? 25} of each month',
-                onTap: () {
-                  // TODO: Open payday edit dialog
-                },
+                onTap: () => _editPayday(settings),
               ),
               _SettingsTile(
                 icon: Icons.money_rounded,
                 title: 'Currency',
                 subtitle: settings?.currency ?? 'ZAR',
-                onTap: () {
-                  // TODO: Open currency picker
-                },
+                onTap: () => _editCurrency(settings),
               ),
               _SettingsTile(
                 icon: Icons.account_balance_wallet_rounded,
@@ -102,9 +283,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: settings?.monthlyBudget != null
                     ? '${settings?.currencySymbol ?? 'R'} ${settings?.monthlyBudget?.toStringAsFixed(2)}'
                     : 'Not set',
-                onTap: () {
-                  // TODO: Open budget edit dialog
-                },
+                onTap: () => _editMonthlyBudget(settings),
               ),
             ],
           ),
@@ -289,6 +468,155 @@ class _SettingsToggle extends StatelessWidget {
       value: value,
       onChanged: onChanged,
       activeColor: AppTheme.primary,
+    );
+  }
+}
+
+/// Generic single-field edit dialog used for the simple text/number
+/// settings fields (monthly income, payday, monthly budget). Saves by
+/// calling [SettingsNotifier.updateSettings] and closes with a snackbar
+/// reporting success/failure, mirroring `_AddPersonDialog` in
+/// family_management_screen.dart.
+class _EditFieldDialog extends ConsumerStatefulWidget {
+  final String title;
+  final String label;
+  final IconData icon;
+  final String initialValue;
+  final TextInputType keyboardType;
+  final String? Function(String?) validator;
+  final Map<String, dynamic> Function(String value) buildData;
+  final bool showClear;
+
+  const _EditFieldDialog({
+    required this.title,
+    required this.label,
+    required this.icon,
+    required this.initialValue,
+    required this.keyboardType,
+    required this.validator,
+    required this.buildData,
+    this.showClear = false,
+  });
+
+  @override
+  ConsumerState<_EditFieldDialog> createState() => _EditFieldDialogState();
+}
+
+class _EditFieldDialogState extends ConsumerState<_EditFieldDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _controller;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save({String? overrideValue}) async {
+    if (overrideValue == null && !_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    final data = widget.buildData(overrideValue ?? _controller.text.trim());
+    final success = await ref.read(settingsProvider.notifier).updateSettings(data);
+    if (!mounted) return;
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success ? '${widget.title} updated' : 'Failed to update ${widget.title.toLowerCase()}'),
+        backgroundColor: success ? AppTheme.success : AppTheme.error,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          controller: _controller,
+          keyboardType: widget.keyboardType,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: widget.label,
+            border: const OutlineInputBorder(),
+            prefixIcon: Icon(widget.icon),
+          ),
+          validator: widget.validator,
+        ),
+      ),
+      actions: [
+        if (widget.showClear)
+          TextButton(
+            onPressed: _saving ? null : () => _save(overrideValue: ''),
+            child: const Text('Clear'),
+          ),
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _saving ? null : () => _save(),
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Currency picker dialog. Supported currencies mirror
+/// `Settings.currencySymbol` in lib/models/settings.dart.
+class _EditCurrencyDialog extends ConsumerWidget {
+  static const _currencies = ['ZAR', 'USD', 'EUR', 'GBP'];
+
+  final String currentCurrency;
+
+  const _EditCurrencyDialog({required this.currentCurrency});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return AlertDialog(
+      title: const Text('Currency'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: _currencies
+            .map(
+              (code) => ListTile(
+                title: Text(code),
+                trailing: code == currentCurrency
+                    ? Icon(Icons.check_rounded, color: AppTheme.primary)
+                    : null,
+                onTap: () async {
+                  final navigator = Navigator.of(context);
+                  final messenger = ScaffoldMessenger.of(context);
+                  final success = await ref
+                      .read(settingsProvider.notifier)
+                      .updateSettings({'currency': code});
+                  navigator.pop();
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(success ? 'Currency updated' : 'Failed to update currency'),
+                      backgroundColor: success ? AppTheme.success : AppTheme.error,
+                    ),
+                  );
+                },
+              ),
+            )
+            .toList(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ],
     );
   }
 }
