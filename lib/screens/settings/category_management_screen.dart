@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../core/constants.dart';
+import '../../models/expense.dart';
 import '../../providers/expenses_provider.dart';
 import '../../providers/settings_provider.dart';
 
@@ -25,7 +26,7 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
   }
 
   /// Calculate category statistics
-  Map<ExpenseCategory, CategoryStats> _calculateCategoryStats(List<dynamic> expenses) {
+  Map<ExpenseCategory, CategoryStats> _calculateCategoryStats(List<Expense> expenses) {
     final Map<ExpenseCategory, CategoryStats> stats = {};
 
     // Initialize all categories with zero stats
@@ -41,7 +42,7 @@ class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScr
     for (final expense in expenses) {
       try {
         final category = ExpenseCategory.values.firstWhere(
-          (c) => c.name == expense.category,
+          (c) => c.name == expense.category.name,
           orElse: () => ExpenseCategory.OTHER,
         );
         stats[category] = CategoryStats(

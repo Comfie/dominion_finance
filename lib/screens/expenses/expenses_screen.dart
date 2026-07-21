@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants.dart';
 import '../../core/theme.dart';
+import '../../models/expense.dart';
 import '../../providers/expenses_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/cards/month_selector.dart';
@@ -49,7 +51,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     );
   }
 
-  void _showEditExpenseModal(dynamic expense) {
+  void _showEditExpenseModal(Expense expense) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -101,7 +103,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     var filteredExpenses = _selectedCategory == null
         ? expensesState.expenses
         : expensesState.expenses
-            .where((e) => e.category == _selectedCategory)
+            .where((e) => e.category.name == _selectedCategory)
             .toList();
 
     // Filter by search query
@@ -349,7 +351,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 }
 
 class _ExpenseCard extends StatelessWidget {
-  final dynamic expense;
+  final Expense expense;
   final String currencySymbol;
   final VoidCallback onTap;
   final VoidCallback onDelete;
@@ -361,50 +363,50 @@ class _ExpenseCard extends StatelessWidget {
     required this.onDelete,
   });
 
-  IconData _getCategoryIcon(String category) {
-    switch (category.toUpperCase()) {
-      case 'GROCERIES':
+  IconData _getCategoryIcon(Category category) {
+    switch (category) {
+      case Category.GROCERIES:
         return Icons.shopping_cart_rounded;
-      case 'TRANSPORT':
+      case Category.TRANSPORT:
         return Icons.directions_car_rounded;
-      case 'DINING':
+      case Category.DINING:
         return Icons.restaurant_rounded;
-      case 'ENTERTAINMENT':
+      case Category.ENTERTAINMENT:
         return Icons.movie_rounded;
-      case 'UTILITIES':
+      case Category.UTILITIES:
         return Icons.bolt_rounded;
-      case 'SHOPPING':
+      case Category.SHOPPING:
         return Icons.shopping_bag_rounded;
-      case 'HOUSING':
+      case Category.HOUSING:
         return Icons.home_rounded;
-      case 'INSURANCE':
+      case Category.INSURANCE:
         return Icons.security_rounded;
-      case 'LIVING':
+      case Category.LIVING:
         return Icons.favorite_rounded;
       default:
         return Icons.receipt_long_rounded;
     }
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category.toUpperCase()) {
-      case 'GROCERIES':
+  Color _getCategoryColor(Category category) {
+    switch (category) {
+      case Category.GROCERIES:
         return Colors.green;
-      case 'TRANSPORT':
+      case Category.TRANSPORT:
         return Colors.blue;
-      case 'DINING':
+      case Category.DINING:
         return Colors.orange;
-      case 'ENTERTAINMENT':
+      case Category.ENTERTAINMENT:
         return Colors.purple;
-      case 'UTILITIES':
+      case Category.UTILITIES:
         return Colors.amber;
-      case 'SHOPPING':
+      case Category.SHOPPING:
         return Colors.pink;
-      case 'HOUSING':
+      case Category.HOUSING:
         return Colors.brown;
-      case 'INSURANCE':
+      case Category.INSURANCE:
         return Colors.indigo;
-      case 'LIVING':
+      case Category.LIVING:
         return Colors.red;
       default:
         return Colors.grey;
@@ -510,10 +512,7 @@ class _ExpenseCard extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          expense.category.toLowerCase().replaceFirst(
-                                expense.category[0],
-                                expense.category[0].toUpperCase(),
-                              ),
+                          expense.category.displayName,
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: AppTheme.textMuted,
                               ),

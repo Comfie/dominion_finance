@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/constants.dart';
 import '../../core/storage_mode.dart';
 import '../../core/theme.dart';
+import '../../models/expense.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/expenses_provider.dart';
@@ -35,10 +37,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   /// Calculate total spending by category
-  Map<String, double> _calculateCategoryTotals(List<dynamic> expenses) {
+  Map<String, double> _calculateCategoryTotals(List<Expense> expenses) {
     final Map<String, double> totals = {};
     for (final expense in expenses) {
-      final category = expense.category as String;
+      final category = expense.category.name;
       totals[category] = (totals[category] ?? 0) + expense.amount;
     }
     return totals;
@@ -488,7 +490,7 @@ class _ActionButton extends StatelessWidget {
 }
 
 class _ExpenseItem extends StatelessWidget {
-  final dynamic expense;
+  final Expense expense;
   final String currencySymbol;
 
   const _ExpenseItem({
@@ -496,50 +498,50 @@ class _ExpenseItem extends StatelessWidget {
     required this.currencySymbol,
   });
 
-  IconData _getCategoryIcon(String category) {
-    switch (category.toUpperCase()) {
-      case 'GROCERIES':
+  IconData _getCategoryIcon(Category category) {
+    switch (category) {
+      case Category.GROCERIES:
         return Icons.shopping_cart_rounded;
-      case 'TRANSPORT':
+      case Category.TRANSPORT:
         return Icons.directions_car_rounded;
-      case 'DINING':
+      case Category.DINING:
         return Icons.restaurant_rounded;
-      case 'ENTERTAINMENT':
+      case Category.ENTERTAINMENT:
         return Icons.movie_rounded;
-      case 'UTILITIES':
+      case Category.UTILITIES:
         return Icons.bolt_rounded;
-      case 'SHOPPING':
+      case Category.SHOPPING:
         return Icons.shopping_bag_rounded;
-      case 'HOUSING':
+      case Category.HOUSING:
         return Icons.home_rounded;
-      case 'INSURANCE':
+      case Category.INSURANCE:
         return Icons.security_rounded;
-      case 'LIVING':
+      case Category.LIVING:
         return Icons.favorite_rounded;
       default:
         return Icons.receipt_long_rounded;
     }
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category.toUpperCase()) {
-      case 'GROCERIES':
+  Color _getCategoryColor(Category category) {
+    switch (category) {
+      case Category.GROCERIES:
         return Colors.green;
-      case 'TRANSPORT':
+      case Category.TRANSPORT:
         return Colors.blue;
-      case 'DINING':
+      case Category.DINING:
         return Colors.orange;
-      case 'ENTERTAINMENT':
+      case Category.ENTERTAINMENT:
         return Colors.purple;
-      case 'UTILITIES':
+      case Category.UTILITIES:
         return Colors.amber;
-      case 'SHOPPING':
+      case Category.SHOPPING:
         return Colors.pink;
-      case 'HOUSING':
+      case Category.HOUSING:
         return Colors.brown;
-      case 'INSURANCE':
+      case Category.INSURANCE:
         return Colors.indigo;
-      case 'LIVING':
+      case Category.LIVING:
         return Colors.red;
       default:
         return Colors.grey;
@@ -584,7 +586,7 @@ class _ExpenseItem extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  expense.category,
+                  expense.category.displayName,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppTheme.textMuted,
                       ),
