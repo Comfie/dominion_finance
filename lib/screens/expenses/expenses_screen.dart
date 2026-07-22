@@ -221,7 +221,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                 });
                               },
                             ),
-                          if (filteredExpenses.isNotEmpty && !_showSearch)
+                          if (expensesState.expenses.isNotEmpty && !_showSearch)
                             PopupMenuButton<String>(
                               icon: Icon(
                                 _selectedCategory != null
