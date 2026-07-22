@@ -135,5 +135,26 @@ void main() {
       expect(state.insights, isNotNull);
       expect(state.analytics, isNotNull);
     });
+
+    test('loadAll preserves an error from one call when the other succeeds after it', () async {
+      final fake = FakeAiRepository()
+        ..throwOnAnalytics = true
+        ..insightsToReturn = SpendingInsights(
+          summary: 'Summary',
+          highlights: const [],
+          recommendations: const [],
+          trend: 'stable',
+        );
+      final container = ProviderContainer(
+        overrides: [aiRepositoryProvider.overrideWithValue(fake)],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(insightsProvider.notifier).loadAll();
+
+      final state = container.read(insightsProvider);
+      expect(state.error, 'Failed to load spending analytics');
+      expect(state.insights, isNotNull);
+    });
   });
 }

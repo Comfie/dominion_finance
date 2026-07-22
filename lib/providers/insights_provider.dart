@@ -48,7 +48,7 @@ class InsightsNotifier extends Notifier<InsightsState> {
     state = state.copyWith(isLoadingInsights: true, error: null);
     try {
       final insights = await _aiRepository.getInsights(month: month);
-      state = state.copyWith(insights: insights, isLoadingInsights: false);
+      state = state.copyWith(insights: insights, isLoadingInsights: false, error: state.error);
     } on RepositoryException catch (e) {
       state = state.copyWith(isLoadingInsights: false, error: e.message);
     }
@@ -58,7 +58,7 @@ class InsightsNotifier extends Notifier<InsightsState> {
     state = state.copyWith(isLoadingAnalytics: true, error: null);
     try {
       final analytics = await _aiRepository.getSpendingAnalytics(months: months, targetMonth: targetMonth);
-      state = state.copyWith(analytics: analytics, isLoadingAnalytics: false);
+      state = state.copyWith(analytics: analytics, isLoadingAnalytics: false, error: state.error);
     } on RepositoryException catch (e) {
       state = state.copyWith(isLoadingAnalytics: false, error: e.message);
     }
