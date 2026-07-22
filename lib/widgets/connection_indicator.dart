@@ -1,79 +1,73 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/storage_mode.dart';
 import '../core/theme.dart';
 
-/// Connection status indicator widget
-/// Shows when the app is offline
-/// Follows SKILL.md guidelines for proper state management
-class ConnectionIndicator extends StatefulWidget {
+/// Wraps [child] with a slim offline/online banner.
+///
+/// Only cloud-mode users depend on connectivity for their data — local mode
+/// never calls the network for domain data — so this is a complete no-op
+/// (no `Connectivity` listener, no banner) when [storageModeProvider] is
+/// [StorageMode.local].
+class ConnectionIndicator extends ConsumerStatefulWidget {
+  const ConnectionIndicator({super.key, required this.child});
+
   final Widget child;
 
-  const ConnectionIndicator({
-    super.key,
-    required this.child,
-  });
-
   @override
-  State<ConnectionIndicator> createState() => _ConnectionIndicatorState();
+  ConsumerState<ConnectionIndicator> createState() => _ConnectionIndicatorState();
 }
 
-class _ConnectionIndicatorState extends State<ConnectionIndicator> {
+class _ConnectionIndicatorState extends ConsumerState<ConnectionIndicator> {
   final Connectivity _connectivity = Connectivity();
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  StreamSubscription<List<ConnectivityResult>>? _subscription;
   bool _isOnline = true;
   bool _showBanner = false;
 
   @override
   void initState() {
     super.initState();
-    _initConnectivity();
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+    if (ref.read(storageModeProvider) == StorageMode.cloud) {
+      _startListening();
+    }
   }
 
   @override
   void dispose() {
-    _connectivitySubscription?.cancel();
+    _subscription?.cancel();
     super.dispose();
   }
 
-  Future<void> _initConnectivity() async {
-    try {
-      final result = await _connectivity.checkConnectivity();
-      _updateConnectionStatus(result);
-    } catch (e) {
-      // If we can't check connectivity, assume we're online
-      if (mounted) {
-        setState(() {
-          _isOnline = true;
-          _showBanner = false;
-        });
-      }
-    }
+  void _startListening() {
+    if (_subscription != null) return;
+    _connectivity.checkConnectivity().then(_updateConnectionStatus);
+    _subscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+  }
+
+  void _stopListening() {
+    _subscription?.cancel();
+    _subscription = null;
+    if (mounted) setState(() => _showBanner = false);
   }
 
   void _updateConnectionStatus(List<ConnectivityResult> results) {
     if (!mounted) return;
-
-    // Check if any result indicates connectivity
-    final isOnline = results.any((result) =>
-        result == ConnectivityResult.wifi ||
-        result == ConnectivityResult.mobile ||
-        result == ConnectivityResult.ethernet);
+    final isOnline = results.any(
+      (r) =>
+          r == ConnectivityResult.wifi ||
+          r == ConnectivityResult.mobile ||
+          r == ConnectivityResult.ethernet,
+    );
 
     setState(() {
-      // Only show banner if we're transitioning from online to offline
       if (_isOnline && !isOnline) {
         _showBanner = true;
       } else if (!_isOnline && isOnline) {
-        // Auto-hide banner after 3 seconds when back online
         _showBanner = true;
         Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) {
-            setState(() {
-              _showBanner = false;
-            });
-          }
+          if (mounted) setState(() => _showBanner = false);
         });
       }
       _isOnline = isOnline;
@@ -82,10 +76,19 @@ class _ConnectionIndicatorState extends State<ConnectionIndicator> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<StorageMode>(storageModeProvider, (previous, next) {
+      if (next == StorageMode.cloud) {
+        _startListening();
+      } else {
+        _stopListening();
+      }
+    });
+    final mode = ref.watch(storageModeProvider);
+
     return Stack(
       children: [
         widget.child,
-        if (_showBanner)
+        if (mode == StorageMode.cloud && _showBanner)
           Positioned(
             top: 0,
             left: 0,
@@ -93,11 +96,7 @@ class _ConnectionIndicatorState extends State<ConnectionIndicator> {
             child: SafeArea(
               child: _ConnectionBanner(
                 isOnline: _isOnline,
-                onDismiss: () {
-                  setState(() {
-                    _showBanner = false;
-                  });
-                },
+                onDismiss: () => setState(() => _showBanner = false),
               ),
             ),
           ),
@@ -106,56 +105,48 @@ class _ConnectionIndicatorState extends State<ConnectionIndicator> {
   }
 }
 
-/// Connection banner widget
 class _ConnectionBanner extends StatelessWidget {
+  const _ConnectionBanner({required this.isOnline, required this.onDismiss});
+
   final bool isOnline;
   final VoidCallback onDismiss;
 
-  const _ConnectionBanner({
-    required this.isOnline,
-    required this.onDismiss,
-  });
-
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
+    final tone = isOnline ? appColors.success : colorScheme.error;
+
     return Material(
       color: Colors.transparent,
       child: Container(
         margin: const EdgeInsets.all(8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isOnline ? AppTheme.success : AppTheme.error,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: tone.withValues(alpha: 0.4)),
         ),
         child: Row(
           children: [
             Icon(
               isOnline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
-              color: Colors.white,
-              size: 20,
+              color: tone,
+              size: 18,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
-                isOnline
-                    ? 'Back online'
-                    : 'No internet connection',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
+                isOnline ? 'Back online' : 'No internet connection',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: tone,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ),
             IconButton(
               onPressed: onDismiss,
-              icon: const Icon(Icons.close, color: Colors.white, size: 20),
+              icon: Icon(Icons.close, color: tone, size: 18),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
