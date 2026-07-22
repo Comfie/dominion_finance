@@ -536,7 +536,7 @@ class _AtAGlanceStrip extends StatelessWidget {
 
     final items = [
       (label: 'Income', amount: totalIncome, icon: Icons.arrow_upward_rounded, color: appColors.success),
-      (label: 'Expenses', amount: totalExpenses, icon: Icons.arrow_downward_rounded, color: appColors.info),
+      (label: 'Expenses', amount: totalExpenses, icon: Icons.arrow_downward_rounded, color: colorScheme.error),
       (label: 'Obligations', amount: totalObligations, icon: Icons.account_balance_wallet_rounded, color: appColors.warning),
       (label: 'Goals', amount: totalGoals, icon: Icons.savings_rounded, color: appColors.info),
     ];
@@ -759,7 +759,7 @@ class _ExpenseItem extends StatelessWidget {
             '-$currencySymbol ${expense.amount.toStringAsFixed(2)}',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).extension<AppColors>()!.infoText,
+                  color: Theme.of(context).colorScheme.error,
                 ),
           ),
         ],
