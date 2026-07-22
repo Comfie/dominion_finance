@@ -54,17 +54,6 @@ class _AddIncomeModalState extends ConsumerState<AddIncomeModal> {
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppTheme.primary,
-              surface: AppTheme.surface,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
@@ -100,7 +89,7 @@ class _AddIncomeModalState extends ConsumerState<AddIncomeModal> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to ${isEditing ? 'update' : 'create'} income'),
-          backgroundColor: AppTheme.error,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -108,13 +97,16 @@ class _AddIncomeModalState extends ConsumerState<AddIncomeModal> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -177,7 +169,7 @@ class _AddIncomeModalState extends ConsumerState<AddIncomeModal> {
                   labelText: 'Source',
                   prefixIcon: Icon(Icons.source_outlined),
                 ),
-                dropdownColor: AppTheme.surfaceLight,
+                dropdownColor: appColors.surfaceElevated,
                 items: IncomeSource.values.map((source) {
                   return DropdownMenuItem(
                     value: source,
@@ -214,7 +206,7 @@ class _AddIncomeModalState extends ConsumerState<AddIncomeModal> {
                 onChanged: (value) {
                   setState(() => _isRecurring = value);
                 },
-                activeColor: AppTheme.primary,
+                activeColor: colorScheme.primary,
               ),
               const SizedBox(height: 16),
               TextFormField(

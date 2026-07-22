@@ -13,36 +13,23 @@ class SpendingByCategoryChart extends StatelessWidget {
     required this.currencySymbol,
   });
 
-  Color _getCategoryColor(String category) {
-    switch (category.toUpperCase()) {
-      case 'GROCERIES':
-        return Colors.green;
-      case 'TRANSPORT':
-        return Colors.blue;
-      case 'DINING':
-        return Colors.orange;
-      case 'ENTERTAINMENT':
-        return Colors.purple;
-      case 'UTILITIES':
-        return Colors.amber;
-      case 'SHOPPING':
-        return Colors.pink;
-      case 'HOUSING':
-        return Colors.brown;
-      case 'INSURANCE':
-        return Colors.indigo;
-      case 'LIVING':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
+  /// Category chip tint, cycled from the theme's token palette rather than
+  /// ad hoc Material colors.
+  Color _getCategoryColor(BuildContext context, String category) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
+    final palette = [
+      colorScheme.primary,
+      colorScheme.secondary,
+      appColors.warning,
+      appColors.success,
+    ];
+    return palette[category.toUpperCase().hashCode.abs() % palette.length];
   }
 
   String _formatCategoryName(String category) {
-    return category.toLowerCase().replaceFirst(
-          category[0],
-          category[0].toUpperCase(),
-        );
+    final lower = category.toLowerCase();
+    return lower[0].toUpperCase() + lower.substring(1);
   }
 
   @override
@@ -51,8 +38,8 @@ class SpendingByCategoryChart extends StatelessWidget {
       return Container(
         height: 250,
         decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Center(
           child: Column(
@@ -61,13 +48,13 @@ class SpendingByCategoryChart extends StatelessWidget {
               Icon(
                 Icons.pie_chart_outline_rounded,
                 size: 48,
-                color: AppTheme.textMuted,
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
               const SizedBox(height: 12),
               Text(
                 'No spending data',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.textMuted,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
                     ),
               ),
             ],
@@ -91,8 +78,8 @@ class SpendingByCategoryChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,7 +97,7 @@ class SpendingByCategoryChart extends StatelessWidget {
                 '$currencySymbol ${total.toStringAsFixed(2)}',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.error,
+                      color: Theme.of(context).extension<AppColors>()!.infoText,
                     ),
               ),
             ],
@@ -131,7 +118,7 @@ class SpendingByCategoryChart extends StatelessWidget {
                         final category = entry.value.key;
                         final amount = entry.value.value;
                         final percentage = (amount / total) * 100;
-                        final color = _getCategoryColor(category);
+                        final color = _getCategoryColor(context, category);
 
                         return PieChartSectionData(
                           color: color,
@@ -157,8 +144,7 @@ class SpendingByCategoryChart extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: topCategories.map((entry) {
                       final category = entry.key;
-                      final amount = entry.value;
-                      final color = _getCategoryColor(category);
+                      final color = _getCategoryColor(context, category);
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),

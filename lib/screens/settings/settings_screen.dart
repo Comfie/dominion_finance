@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/storage_mode.dart';
@@ -13,6 +14,7 @@ import '../../providers/obligations_provider.dart';
 import '../../providers/persons_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../repositories/repository_providers.dart';
+import '../../widgets/scooped_header.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -45,9 +47,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         initialValue: settings?.monthlyIncome.toString() ?? '',
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         validator: (value) {
-          if (value == null || value.trim().isEmpty) return 'Please enter an amount';
+          if (value == null || value.trim().isEmpty)
+            return 'Please enter an amount';
           final parsed = double.tryParse(value.trim());
-          if (parsed == null || parsed < 0) return 'Please enter a valid amount';
+          if (parsed == null || parsed < 0)
+            return 'Please enter a valid amount';
           return null;
         },
         buildData: (value) => {'monthlyIncome': double.parse(value)},
@@ -65,7 +69,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         initialValue: settings?.payday.toString() ?? '',
         keyboardType: TextInputType.number,
         validator: (value) {
-          if (value == null || value.trim().isEmpty) return 'Please enter a day';
+          if (value == null || value.trim().isEmpty)
+            return 'Please enter a day';
           final parsed = int.tryParse(value.trim());
           if (parsed == null || parsed < 1 || parsed > 31) {
             return 'Enter a day between 1 and 31';
@@ -90,11 +95,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         validator: (value) {
           if (value == null || value.trim().isEmpty) return null;
           final parsed = double.tryParse(value.trim());
-          if (parsed == null || parsed < 0) return 'Please enter a valid amount';
+          if (parsed == null || parsed < 0)
+            return 'Please enter a valid amount';
           return null;
         },
-        buildData: (value) =>
-            {'monthlyBudget': value.trim().isEmpty ? null : double.parse(value.trim())},
+        buildData: (value) => {
+          'monthlyBudget': value.trim().isEmpty
+              ? null
+              : double.parse(value.trim()),
+        },
       ),
     );
   }
@@ -102,7 +111,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _editCurrency(Settings? settings) async {
     await showDialog(
       context: context,
-      builder: (context) => _EditCurrencyDialog(currentCurrency: settings?.currency ?? 'ZAR'),
+      builder: (context) =>
+          _EditCurrencyDialog(currentCurrency: settings?.currency ?? 'ZAR'),
     );
   }
 
@@ -114,9 +124,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Failed to export data'),
-          backgroundColor: AppTheme.error,
+        SnackBar(
+          content: const Text('Failed to export data'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -169,8 +179,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           .join(', ');
       messenger.showSnackBar(
         SnackBar(
-          content: Text(summary.isEmpty ? 'Backup imported' : 'Imported $summary'),
-          backgroundColor: AppTheme.success,
+          content: Text(
+            summary.isEmpty ? 'Backup imported' : 'Imported $summary',
+          ),
+          backgroundColor: Theme.of(context).extension<AppColors>()!.success,
         ),
       );
     } catch (e) {
@@ -178,7 +190,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: AppTheme.error,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -192,183 +204,228 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final storageMode = ref.watch(storageModeProvider);
     final isLocalMode = storageMode == StorageMode.local;
 
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
+    // The emerald hero draws behind the (transparent) status bar, so this
+    // screen needs dark status icons regardless of theme brightness; the
+    // other tabs' AppBars re-assert the theme's overlay style when shown.
+    final overlayStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: appColors.surfaceElevated,
+      systemNavigationBarIconBrightness:
+          Theme.of(context).brightness == Brightness.dark
+          ? Brightness.light
+          : Brightness.dark,
+    );
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _SettingsSection(
-            title: 'Data storage',
-            children: isLocalMode
-                ? [
-                    const _SettingsTile(
-                      icon: Icons.smartphone_rounded,
-                      title: 'Local',
-                      subtitle: 'Data is stored only on this device',
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: overlayStyle,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: ScoopedHeader(
+                background: colorScheme.primary,
+                child: Text(
+                  'Settings',
+                  style: TextStyle(
+                    color: colorScheme.onPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _SettingsSection(
+                    title: 'Data storage',
+                    children: isLocalMode
+                        ? [
+                            const _SettingsTile(
+                              icon: Icons.smartphone_rounded,
+                              title: 'Local',
+                              subtitle: 'Data is stored only on this device',
+                            ),
+                            _SettingsTile(
+                              icon: Icons.cloud_sync_rounded,
+                              title: 'Switch to cloud sync (sign in)',
+                              subtitle:
+                                  'Sign in to sync your data across devices',
+                              onTap: () async {
+                                await ref
+                                    .read(storageModeProvider.notifier)
+                                    .setMode(StorageMode.cloud);
+                                if (context.mounted) {
+                                  context.go('/login');
+                                }
+                              },
+                            ),
+                            _SettingsTile(
+                              icon: Icons.upload_file_rounded,
+                              title: 'Export data',
+                              subtitle: 'Save a backup of your data as JSON',
+                              onTap: _exportData,
+                            ),
+                            _SettingsTile(
+                              icon: Icons.download_rounded,
+                              title: 'Import data',
+                              subtitle: 'Restore from a backup file',
+                              onTap: _importData,
+                            ),
+                          ]
+                        : [
+                            _SettingsTile(
+                              icon: Icons.cloud_rounded,
+                              title: 'Cloud',
+                              subtitle:
+                                  authState.user?.email ??
+                                  'Data syncs to your account',
+                            ),
+                          ],
+                  ),
+                  const SizedBox(height: 24),
+                  if (!isLocalMode) ...[
+                    _SettingsSection(
+                      title: 'Account',
+                      children: [
+                        _SettingsTile(
+                          icon: Icons.person_outlined,
+                          title: authState.user?.name ?? 'User',
+                          subtitle: authState.user?.email ?? '',
+                        ),
+                      ],
                     ),
-                    _SettingsTile(
-                      icon: Icons.cloud_sync_rounded,
-                      title: 'Switch to cloud sync (sign in)',
-                      subtitle: 'Sign in to sync your data across devices',
-                      onTap: () async {
-                        await ref
-                            .read(storageModeProvider.notifier)
-                            .setMode(StorageMode.cloud);
-                        if (context.mounted) {
-                          context.go('/login');
-                        }
-                      },
-                    ),
-                    _SettingsTile(
-                      icon: Icons.upload_file_rounded,
-                      title: 'Export data',
-                      subtitle: 'Save a backup of your data as JSON',
-                      onTap: _exportData,
-                    ),
-                    _SettingsTile(
-                      icon: Icons.download_rounded,
-                      title: 'Import data',
-                      subtitle: 'Restore from a backup file',
-                      onTap: _importData,
-                    ),
-                  ]
-                : [
-                    _SettingsTile(
-                      icon: Icons.cloud_rounded,
-                      title: 'Cloud',
-                      subtitle: authState.user?.email ?? 'Data syncs to your account',
+                    const SizedBox(height: 24),
+                  ],
+                  _SettingsSection(
+                    title: 'Finances',
+                    children: [
+                      _SettingsTile(
+                        icon: Icons.attach_money_rounded,
+                        title: 'Monthly Income',
+                        subtitle:
+                            '${settings?.currencySymbol ?? 'R'} ${settings?.monthlyIncome.toStringAsFixed(2) ?? '0.00'}',
+                        onTap: () => _editMonthlyIncome(settings),
+                      ),
+                      _SettingsTile(
+                        icon: Icons.calendar_today_rounded,
+                        title: 'Payday',
+                        subtitle: 'Day ${settings?.payday ?? 25} of each month',
+                        onTap: () => _editPayday(settings),
+                      ),
+                      _SettingsTile(
+                        icon: Icons.money_rounded,
+                        title: 'Currency',
+                        subtitle: settings?.currency ?? 'ZAR',
+                        onTap: () => _editCurrency(settings),
+                      ),
+                      _SettingsTile(
+                        icon: Icons.account_balance_wallet_rounded,
+                        title: 'Monthly Budget',
+                        subtitle: settings?.monthlyBudget != null
+                            ? '${settings?.currencySymbol ?? 'R'} ${settings?.monthlyBudget?.toStringAsFixed(2)}'
+                            : 'Not set',
+                        onTap: () => _editMonthlyBudget(settings),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  _SettingsSection(
+                    title: 'Notifications',
+                    children: [
+                      _SettingsToggle(
+                        icon: Icons.warning_rounded,
+                        title: 'Budget Alerts',
+                        subtitle: 'Get notified when approaching budget limit',
+                        value: settings?.notifyBudgetAlerts ?? true,
+                        onChanged: (value) {
+                          ref.read(settingsProvider.notifier).updateSettings({
+                            'notifyBudgetAlerts': value,
+                          });
+                        },
+                      ),
+                      _SettingsToggle(
+                        icon: Icons.event_rounded,
+                        title: 'Upcoming Bills',
+                        subtitle: 'Reminders for upcoming payments',
+                        value: settings?.notifyUpcomingBills ?? true,
+                        onChanged: (value) {
+                          ref.read(settingsProvider.notifier).updateSettings({
+                            'notifyUpcomingBills': value,
+                          });
+                        },
+                      ),
+                      _SettingsToggle(
+                        icon: Icons.celebration_rounded,
+                        title: 'Payday',
+                        subtitle: 'Get notified on payday',
+                        value: settings?.notifyPayday ?? true,
+                        onChanged: (value) {
+                          ref.read(settingsProvider.notifier).updateSettings({
+                            'notifyPayday': value,
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  if (!isLocalMode) ...[
+                    const SizedBox(height: 24),
+                    _SettingsSection(
+                      title: 'Account',
+                      children: [
+                        _SettingsTile(
+                          icon: Icons.logout_rounded,
+                          title: 'Sign Out',
+                          subtitle: 'Sign out of your account',
+                          iconColor: colorScheme.error,
+                          onTap: () async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Sign Out'),
+                                content: const Text(
+                                  'Are you sure you want to sign out?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                    ),
+                                    child: const Text('Sign Out'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirmed == true) {
+                              await ref.read(authProvider.notifier).logout();
+                              if (context.mounted) {
+                                context.go('/login');
+                              }
+                            }
+                          },
+                        ),
+                      ],
                     ),
                   ],
-          ),
-          const SizedBox(height: 24),
-          if (!isLocalMode) ...[
-            _SettingsSection(
-              title: 'Account',
-              children: [
-                _SettingsTile(
-                  icon: Icons.person_outlined,
-                  title: authState.user?.name ?? 'User',
-                  subtitle: authState.user?.email ?? '',
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-          ],
-          _SettingsSection(
-            title: 'Finances',
-            children: [
-              _SettingsTile(
-                icon: Icons.attach_money_rounded,
-                title: 'Monthly Income',
-                subtitle: '${settings?.currencySymbol ?? 'R'} ${settings?.monthlyIncome.toStringAsFixed(2) ?? '0.00'}',
-                onTap: () => _editMonthlyIncome(settings),
+                ]),
               ),
-              _SettingsTile(
-                icon: Icons.calendar_today_rounded,
-                title: 'Payday',
-                subtitle: 'Day ${settings?.payday ?? 25} of each month',
-                onTap: () => _editPayday(settings),
-              ),
-              _SettingsTile(
-                icon: Icons.money_rounded,
-                title: 'Currency',
-                subtitle: settings?.currency ?? 'ZAR',
-                onTap: () => _editCurrency(settings),
-              ),
-              _SettingsTile(
-                icon: Icons.account_balance_wallet_rounded,
-                title: 'Monthly Budget',
-                subtitle: settings?.monthlyBudget != null
-                    ? '${settings?.currencySymbol ?? 'R'} ${settings?.monthlyBudget?.toStringAsFixed(2)}'
-                    : 'Not set',
-                onTap: () => _editMonthlyBudget(settings),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _SettingsSection(
-            title: 'Notifications',
-            children: [
-              _SettingsToggle(
-                icon: Icons.warning_rounded,
-                title: 'Budget Alerts',
-                subtitle: 'Get notified when approaching budget limit',
-                value: settings?.notifyBudgetAlerts ?? true,
-                onChanged: (value) {
-                  ref.read(settingsProvider.notifier).updateSettings({
-                    'notifyBudgetAlerts': value,
-                  });
-                },
-              ),
-              _SettingsToggle(
-                icon: Icons.event_rounded,
-                title: 'Upcoming Bills',
-                subtitle: 'Reminders for upcoming payments',
-                value: settings?.notifyUpcomingBills ?? true,
-                onChanged: (value) {
-                  ref.read(settingsProvider.notifier).updateSettings({
-                    'notifyUpcomingBills': value,
-                  });
-                },
-              ),
-              _SettingsToggle(
-                icon: Icons.celebration_rounded,
-                title: 'Payday',
-                subtitle: 'Get notified on payday',
-                value: settings?.notifyPayday ?? true,
-                onChanged: (value) {
-                  ref.read(settingsProvider.notifier).updateSettings({
-                    'notifyPayday': value,
-                  });
-                },
-              ),
-            ],
-          ),
-          if (!isLocalMode) ...[
-            const SizedBox(height: 24),
-            _SettingsSection(
-              title: 'Account',
-              children: [
-                _SettingsTile(
-                  icon: Icons.logout_rounded,
-                  title: 'Sign Out',
-                  subtitle: 'Sign out of your account',
-                  iconColor: AppTheme.error,
-                  onTap: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Sign Out'),
-                        content: const Text('Are you sure you want to sign out?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel'),
-                          ),
-                          ElevatedButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.error,
-                            ),
-                            child: const Text('Sign Out'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirmed == true) {
-                      await ref.read(authProvider.notifier).logout();
-                      if (context.mounted) {
-                        context.go('/login');
-                      }
-                    }
-                  },
-                ),
-              ],
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -378,10 +435,7 @@ class _SettingsSection extends StatelessWidget {
   final String title;
   final List<Widget> children;
 
-  const _SettingsSection({
-    required this.title,
-    required this.children,
-  });
+  const _SettingsSection({required this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {
@@ -390,19 +444,17 @@ class _SettingsSection extends StatelessWidget {
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: AppTheme.textMuted,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(16),
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
           ),
-          child: Column(
-            children: children,
-          ),
+          child: Column(children: children),
         ),
       ],
     );
@@ -426,15 +478,23 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = iconColor ?? Theme.of(context).colorScheme.primary;
     return ListTile(
-      leading: Icon(icon, color: iconColor ?? AppTheme.primary),
-      title: Text(title),
-      subtitle: Text(
-        subtitle,
-        style: Theme.of(context).textTheme.bodySmall,
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(icon, color: color, size: 20),
       ),
+      title: Text(title),
+      subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
       trailing: onTap != null
-          ? const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted)
+          ? Icon(
+              Icons.chevron_right_rounded,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            )
           : null,
       onTap: onTap,
     );
@@ -458,16 +518,21 @@ class _SettingsToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SwitchListTile(
-      secondary: Icon(icon, color: AppTheme.primary),
-      title: Text(title),
-      subtitle: Text(
-        subtitle,
-        style: Theme.of(context).textTheme.bodySmall,
+      secondary: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: colorScheme.primary.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(icon, color: colorScheme.primary, size: 20),
       ),
+      title: Text(title),
+      subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
       value: value,
       onChanged: onChanged,
-      activeColor: AppTheme.primary,
+      activeThumbColor: colorScheme.primary,
     );
   }
 }
@@ -523,13 +588,21 @@ class _EditFieldDialogState extends ConsumerState<_EditFieldDialog> {
     if (overrideValue == null && !_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     final data = widget.buildData(overrideValue ?? _controller.text.trim());
-    final success = await ref.read(settingsProvider.notifier).updateSettings(data);
+    final success = await ref
+        .read(settingsProvider.notifier)
+        .updateSettings(data);
     if (!mounted) return;
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(success ? '${widget.title} updated' : 'Failed to update ${widget.title.toLowerCase()}'),
-        backgroundColor: success ? AppTheme.success : AppTheme.error,
+        content: Text(
+          success
+              ? '${widget.title} updated'
+              : 'Failed to update ${widget.title.toLowerCase()}',
+        ),
+        backgroundColor: success ? appColors.success : colorScheme.error,
       ),
     );
   }
@@ -582,6 +655,7 @@ class _EditCurrencyDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     return AlertDialog(
       title: const Text('Currency'),
       content: Column(
@@ -591,19 +665,26 @@ class _EditCurrencyDialog extends ConsumerWidget {
               (code) => ListTile(
                 title: Text(code),
                 trailing: code == currentCurrency
-                    ? Icon(Icons.check_rounded, color: AppTheme.primary)
+                    ? Icon(Icons.check_rounded, color: colorScheme.primary)
                     : null,
                 onTap: () async {
                   final navigator = Navigator.of(context);
                   final messenger = ScaffoldMessenger.of(context);
+                  final appColors = Theme.of(context).extension<AppColors>()!;
                   final success = await ref
                       .read(settingsProvider.notifier)
                       .updateSettings({'currency': code});
                   navigator.pop();
                   messenger.showSnackBar(
                     SnackBar(
-                      content: Text(success ? 'Currency updated' : 'Failed to update currency'),
-                      backgroundColor: success ? AppTheme.success : AppTheme.error,
+                      content: Text(
+                        success
+                            ? 'Currency updated'
+                            : 'Failed to update currency',
+                      ),
+                      backgroundColor: success
+                          ? appColors.success
+                          : colorScheme.error,
                     ),
                   );
                 },

@@ -14,22 +14,24 @@ class GoalsProgressChart extends StatelessWidget {
     required this.currencySymbol,
   });
 
-  Color _getColorFromHex(String hexColor) {
+  Color _getColorFromHex(BuildContext context, String hexColor) {
     try {
       return Color(int.parse(hexColor.replaceFirst('#', '0xFF')));
     } catch (e) {
-      return AppTheme.info;
+      return Theme.of(context).extension<AppColors>()!.info;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
     if (goals.isEmpty) {
       return Container(
         height: 250,
         decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Center(
           child: Column(
@@ -38,13 +40,13 @@ class GoalsProgressChart extends StatelessWidget {
               Icon(
                 Icons.savings_rounded,
                 size: 48,
-                color: AppTheme.textMuted,
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
               const SizedBox(height: 12),
               Text(
                 'No goals yet',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.textMuted,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
                     ),
               ),
             ],
@@ -62,8 +64,8 @@ class GoalsProgressChart extends StatelessWidget {
       return Container(
         height: 250,
         decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Center(
           child: Column(
@@ -72,13 +74,13 @@ class GoalsProgressChart extends StatelessWidget {
               Icon(
                 Icons.check_circle_rounded,
                 size: 48,
-                color: AppTheme.success,
+                color: appColors.success,
               ),
               const SizedBox(height: 12),
               Text(
                 'All goals completed!',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.success,
+                      color: appColors.successText,
                     ),
               ),
             ],
@@ -90,8 +92,8 @@ class GoalsProgressChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,23 +114,26 @@ class GoalsProgressChart extends StatelessWidget {
                 barTouchData: BarTouchData(
                   enabled: true,
                   touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (group) => Colors.black87,
+                    getTooltipColor: (group) =>
+                        Theme.of(context).colorScheme.inverseSurface,
                     tooltipPadding: const EdgeInsets.all(8),
                     tooltipMargin: 8,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       final goal = topGoals[group.x.toInt()];
+                      final onTooltip =
+                          Theme.of(context).colorScheme.onInverseSurface;
                       return BarTooltipItem(
                         '${goal.name}\n',
-                        const TextStyle(
-                          color: Colors.white,
+                        TextStyle(
+                          color: onTooltip,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
                         children: [
                           TextSpan(
                             text: '$currencySymbol ${goal.currentAmount.toStringAsFixed(0)} / $currencySymbol ${goal.targetAmount.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              color: Colors.white70,
+                            style: TextStyle(
+                              color: onTooltip.withValues(alpha: 0.7),
                               fontSize: 10,
                             ),
                           ),
@@ -190,7 +195,7 @@ class GoalsProgressChart extends StatelessWidget {
                   horizontalInterval: 25,
                   getDrawingHorizontalLine: (value) {
                     return FlLine(
-                      color: AppTheme.textMuted.withOpacity(0.2),
+                      color: (Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey).withOpacity(0.2),
                       strokeWidth: 1,
                     );
                   },
@@ -199,7 +204,7 @@ class GoalsProgressChart extends StatelessWidget {
                 barGroups: topGoals.asMap().entries.map((entry) {
                   final index = entry.key;
                   final goal = entry.value;
-                  final color = _getColorFromHex(goal.color);
+                  final color = _getColorFromHex(context, goal.color);
 
                   return BarChartGroupData(
                     x: index,

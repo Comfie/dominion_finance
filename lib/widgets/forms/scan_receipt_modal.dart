@@ -148,11 +148,13 @@ class _ScanReceiptModalState extends ConsumerState<ScanReceiptModal> {
 
   /// Create expense from scanned data
   Future<void> _createExpense() async {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (_nameController.text.isEmpty || _amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in name and amount'),
-          backgroundColor: AppTheme.error,
+        SnackBar(
+          content: const Text('Please fill in name and amount'),
+          backgroundColor: colorScheme.error,
         ),
       );
       return;
@@ -161,9 +163,9 @@ class _ScanReceiptModalState extends ConsumerState<ScanReceiptModal> {
     final amount = double.tryParse(_amountController.text);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid amount'),
-          backgroundColor: AppTheme.error,
+        SnackBar(
+          content: const Text('Please enter a valid amount'),
+          backgroundColor: colorScheme.error,
         ),
       );
       return;
@@ -182,16 +184,16 @@ class _ScanReceiptModalState extends ConsumerState<ScanReceiptModal> {
       if (success) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Expense created from receipt'),
-            backgroundColor: AppTheme.success,
+          SnackBar(
+            content: const Text('Expense created from receipt'),
+            backgroundColor: Theme.of(context).extension<AppColors>()!.success,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to create expense'),
-            backgroundColor: AppTheme.error,
+          SnackBar(
+            content: const Text('Failed to create expense'),
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -200,13 +202,17 @@ class _ScanReceiptModalState extends ConsumerState<ScanReceiptModal> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
+    final mutedColor = Theme.of(context).textTheme.bodySmall?.color;
+
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      decoration: const BoxDecoration(
-        color: AppTheme.background,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
         child: SingleChildScrollView(
@@ -273,7 +279,7 @@ class _ScanReceiptModalState extends ConsumerState<ScanReceiptModal> {
                   height: 200,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.textMuted.withOpacity(0.3)),
+                    border: Border.all(color: (mutedColor ?? Colors.grey).withValues(alpha: 0.3)),
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
@@ -316,17 +322,17 @@ class _ScanReceiptModalState extends ConsumerState<ScanReceiptModal> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.error.withOpacity(0.1),
+                    color: colorScheme.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, color: AppTheme.error),
+                      Icon(Icons.error_outline, color: colorScheme.error),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           _error!,
-                          style: TextStyle(color: AppTheme.error),
+                          style: TextStyle(color: colorScheme.error),
                         ),
                       ),
                     ],
@@ -348,12 +354,12 @@ class _ScanReceiptModalState extends ConsumerState<ScanReceiptModal> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.success.withOpacity(0.1),
+                    color: appColors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle, color: AppTheme.success),
+                      Icon(Icons.check_circle, color: appColors.success),
                       const SizedBox(width: 12),
                       const Text('Receipt scanned successfully!'),
                     ],

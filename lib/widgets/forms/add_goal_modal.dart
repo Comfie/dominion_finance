@@ -59,17 +59,6 @@ class _AddGoalModalState extends ConsumerState<AddGoalModal> {
       initialDate: _targetDate ?? DateTime.now().add(const Duration(days: 365)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppTheme.primary,
-              surface: AppTheme.surface,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null) {
       setState(() => _targetDate = picked);
@@ -107,7 +96,7 @@ class _AddGoalModalState extends ConsumerState<AddGoalModal> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to ${isEditing ? 'update' : 'create'} goal'),
-          backgroundColor: AppTheme.error,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -115,13 +104,16 @@ class _AddGoalModalState extends ConsumerState<AddGoalModal> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -193,7 +185,7 @@ class _AddGoalModalState extends ConsumerState<AddGoalModal> {
                   labelText: 'Category',
                   prefixIcon: Icon(Icons.category_outlined),
                 ),
-                dropdownColor: AppTheme.surfaceLight,
+                dropdownColor: appColors.surfaceElevated,
                 items: GoalCategory.values.map((category) {
                   return DropdownMenuItem(
                     value: category,
@@ -221,8 +213,8 @@ class _AddGoalModalState extends ConsumerState<AddGoalModal> {
                         : 'No date set',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: _targetDate != null
-                              ? AppTheme.textPrimary
-                              : AppTheme.textMuted,
+                              ? null
+                              : Theme.of(context).textTheme.bodySmall?.color,
                         ),
                   ),
                 ),

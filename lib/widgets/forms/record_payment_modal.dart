@@ -50,16 +50,16 @@ class _RecordPaymentModalState extends ConsumerState<RecordPaymentModal> {
     if (success && mounted) {
       Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Payment recorded successfully'),
-          backgroundColor: AppTheme.success,
+        SnackBar(
+          content: const Text('Payment recorded successfully'),
+          backgroundColor: Theme.of(context).extension<AppColors>()!.success,
         ),
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to record payment'),
-          backgroundColor: AppTheme.error,
+        SnackBar(
+          content: const Text('Failed to record payment'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -67,13 +67,15 @@ class _RecordPaymentModalState extends ConsumerState<RecordPaymentModal> {
 
   @override
   Widget build(BuildContext context) {
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -100,7 +102,7 @@ class _RecordPaymentModalState extends ConsumerState<RecordPaymentModal> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceLight,
+                  color: appColors.surfaceElevated,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(

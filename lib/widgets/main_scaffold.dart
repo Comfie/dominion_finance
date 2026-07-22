@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../core/theme.dart';
 
 class MainScaffold extends StatelessWidget {
   final Widget child;
@@ -49,50 +48,47 @@ class MainScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: child,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _NavItem(
                   icon: Icons.dashboard_rounded,
-                  label: 'Home',
                   isSelected: _getCurrentIndex(context) == 0,
                   onTap: () => _onTap(context, 0),
                 ),
                 _NavItem(
                   icon: Icons.receipt_long_rounded,
-                  label: 'Expenses',
                   isSelected: _getCurrentIndex(context) == 1,
                   onTap: () => _onTap(context, 1),
                 ),
                 _NavItem(
                   icon: Icons.payments_rounded,
-                  label: 'Bills',
                   isSelected: _getCurrentIndex(context) == 2,
                   onTap: () => _onTap(context, 2),
                 ),
                 _NavItem(
                   icon: Icons.savings_rounded,
-                  label: 'Goals',
                   isSelected: _getCurrentIndex(context) == 3,
                   onTap: () => _onTap(context, 3),
                 ),
                 _NavItem(
                   icon: Icons.settings_rounded,
-                  label: 'Settings',
                   isSelected: _getCurrentIndex(context) == 4,
                   onTap: () => _onTap(context, 4),
                 ),
@@ -107,47 +103,34 @@ class MainScaffold extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
-  final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _NavItem({
     required this.icon,
-    required this.label,
     required this.isSelected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final unselectedColor = Theme.of(context).textTheme.bodySmall?.color ?? colorScheme.onSurface;
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primary.withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? colorScheme.primary : Colors.transparent,
+          shape: BoxShape.circle,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? AppTheme.primary : AppTheme.textMuted,
-              size: 24,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                color: isSelected ? AppTheme.primary : AppTheme.textMuted,
-              ),
-            ),
-          ],
+        child: Icon(
+          icon,
+          color: isSelected ? colorScheme.onPrimary : unselectedColor,
+          size: 24,
         ),
       ),
     );

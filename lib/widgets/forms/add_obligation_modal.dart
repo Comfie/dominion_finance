@@ -103,7 +103,7 @@ class _AddObligationModalState extends ConsumerState<AddObligationModal> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to ${isEditing ? 'update' : 'create'} bill'),
-          backgroundColor: AppTheme.error,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -112,14 +112,16 @@ class _AddObligationModalState extends ConsumerState<AddObligationModal> {
   @override
   Widget build(BuildContext context) {
     final personsState = ref.watch(personsProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
 
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -197,7 +199,7 @@ class _AddObligationModalState extends ConsumerState<AddObligationModal> {
                   labelText: 'Category',
                   prefixIcon: Icon(Icons.category_outlined),
                 ),
-                dropdownColor: AppTheme.surfaceLight,
+                dropdownColor: appColors.surfaceElevated,
                 items: Category.values.map((category) {
                   return DropdownMenuItem(
                     value: category,
@@ -217,7 +219,7 @@ class _AddObligationModalState extends ConsumerState<AddObligationModal> {
                   labelText: 'Debit Order Day',
                   prefixIcon: Icon(Icons.calendar_today_outlined),
                 ),
-                dropdownColor: AppTheme.surfaceLight,
+                dropdownColor: appColors.surfaceElevated,
                 items: List.generate(31, (index) {
                   return DropdownMenuItem(
                     value: index + 1,
@@ -239,7 +241,7 @@ class _AddObligationModalState extends ConsumerState<AddObligationModal> {
                 onChanged: (value) {
                   setState(() => _isUncompromised = value);
                 },
-                activeColor: AppTheme.primary,
+                activeColor: colorScheme.primary,
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -249,7 +251,7 @@ class _AddObligationModalState extends ConsumerState<AddObligationModal> {
                 onChanged: (value) {
                   setState(() => _hasDebt = value);
                 },
-                activeColor: AppTheme.primary,
+                activeColor: colorScheme.primary,
               ),
               if (_hasDebt) ...[
                 const SizedBox(height: 16),
@@ -279,7 +281,7 @@ class _AddObligationModalState extends ConsumerState<AddObligationModal> {
                     labelText: 'Person (optional)',
                     prefixIcon: Icon(Icons.person_outlined),
                   ),
-                  dropdownColor: AppTheme.surfaceLight,
+                  dropdownColor: appColors.surfaceElevated,
                   items: [
                     const DropdownMenuItem(
                       value: null,

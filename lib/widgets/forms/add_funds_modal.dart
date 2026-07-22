@@ -39,16 +39,16 @@ class _AddFundsModalState extends ConsumerState<AddFundsModal> {
     if (success && mounted) {
       Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Funds added successfully'),
-          backgroundColor: AppTheme.success,
+        SnackBar(
+          content: const Text('Funds added successfully'),
+          backgroundColor: Theme.of(context).extension<AppColors>()!.success,
         ),
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to add funds'),
-          backgroundColor: AppTheme.error,
+        SnackBar(
+          content: const Text('Failed to add funds'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -58,14 +58,15 @@ class _AddFundsModalState extends ConsumerState<AddFundsModal> {
   Widget build(BuildContext context) {
     final remaining = widget.goal.targetAmount - widget.goal.currentAmount;
     final goalColor = Color(int.parse(widget.goal.color.replaceFirst('#', '0xFF')));
+    final appColors = Theme.of(context).extension<AppColors>()!;
 
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -121,7 +122,7 @@ class _AddFundsModalState extends ConsumerState<AddFundsModal> {
                     const SizedBox(height: 12),
                     LinearProgressIndicator(
                       value: widget.goal.progressPercentage / 100,
-                      backgroundColor: AppTheme.surfaceLight,
+                      backgroundColor: appColors.surfaceElevated,
                       color: goalColor,
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -146,13 +147,17 @@ class _AddFundsModalState extends ConsumerState<AddFundsModal> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceLight,
+                  color: appColors.surfaceElevated,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.info_outline, size: 16, color: AppTheme.textMuted),
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'R ${remaining.toStringAsFixed(2)} remaining to reach your goal',

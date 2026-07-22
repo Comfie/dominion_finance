@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../core/theme.dart';
 
 class MonthSelector extends StatelessWidget {
   final String currentMonth;
@@ -36,11 +35,15 @@ class MonthSelector extends StatelessWidget {
     final now = DateTime.now();
     final isCurrentMonth = _currentDate.year == now.year && _currentDate.month == now.month;
 
+    final colorScheme = Theme.of(context).colorScheme;
+    final mutedColor = Theme.of(context).textTheme.bodySmall?.color;
+    final secondaryColor = Theme.of(context).textTheme.bodyMedium?.color;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -48,7 +51,7 @@ class MonthSelector extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.chevron_left_rounded),
             onPressed: _previousMonth,
-            color: AppTheme.textSecondary,
+            color: secondaryColor,
             iconSize: 24,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -65,7 +68,7 @@ class MonthSelector extends StatelessWidget {
           IconButton(
             icon: Icon(
               Icons.chevron_right_rounded,
-              color: isCurrentMonth ? AppTheme.textMuted : AppTheme.textSecondary,
+              color: isCurrentMonth ? mutedColor : secondaryColor,
             ),
             onPressed: isCurrentMonth ? null : _nextMonth,
             iconSize: 24,

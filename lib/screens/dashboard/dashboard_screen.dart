@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants.dart';
@@ -15,6 +16,7 @@ import '../../widgets/ai_gate_dialog.dart';
 import '../../widgets/charts/spending_by_category_chart.dart';
 import '../../widgets/charts/goals_progress_chart.dart';
 import '../../widgets/forms/scan_receipt_modal.dart';
+import '../../widgets/scooped_header.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -56,6 +58,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final goalsState = ref.watch(goalsProvider);
     final isLocalMode = ref.watch(storageModeProvider) == StorageMode.local;
 
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
     final currencySymbol = settingsState.settings?.currencySymbol ?? 'R';
 
     // Calculate financial metrics
@@ -75,13 +80,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       obligationsState.isLoading ||
                       goalsState.isLoading;
 
+    // The emerald hero draws behind the (transparent) status bar, so this
+    // screen needs dark status icons regardless of theme brightness; the
+    // other tabs' AppBars re-assert the theme's overlay style when shown.
+    final overlayStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: appColors.surfaceElevated,
+      systemNavigationBarIconBrightness:
+          Theme.of(context).brightness == Brightness.dark
+              ? Brightness.light
+              : Brightness.dark,
+    );
+
     return Scaffold(
-      body: SafeArea(
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: overlayStyle,
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+              child: ScoopedHeader(
+                background: colorScheme.primary,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -93,20 +112,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           children: [
                             Text(
                               'Welcome back,',
-                              style: Theme.of(context).textTheme.bodyMedium,
+                              style: TextStyle(color: colorScheme.onPrimary.withOpacity(0.7)),
                             ),
                             Text(
                               authState.user?.name ?? 'there',
-                              style: Theme.of(context).textTheme.headlineSmall,
+                              style: TextStyle(
+                                color: colorScheme.onPrimary,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
                         CircleAvatar(
-                          backgroundColor: AppTheme.primary,
+                          backgroundColor: colorScheme.surface,
                           child: Text(
                             (authState.user?.name ?? 'U')[0].toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: colorScheme.primary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -114,202 +137,208 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    _SummaryCard(
+                    _SummaryFigure(
                       title: 'Free Cash Flow',
                       amount: freeCashFlow,
                       currencySymbol: currencySymbol,
-                      color: freeCashFlow >= 0 ? AppTheme.success : AppTheme.error,
+                      textColor: colorScheme.onPrimary,
                       icon: freeCashFlow >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _MiniCard(
-                            title: 'Income',
-                            amount: totalIncome,
-                            currencySymbol: currencySymbol,
-                            color: AppTheme.success,
-                            icon: Icons.arrow_upward_rounded,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _MiniCard(
-                            title: 'Expenses',
-                            amount: totalExpenses,
-                            currencySymbol: currencySymbol,
-                            color: AppTheme.error,
-                            icon: Icons.arrow_downward_rounded,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _MiniCard(
-                            title: 'Obligations',
-                            amount: totalObligations,
-                            currencySymbol: currencySymbol,
-                            color: AppTheme.warning,
-                            icon: Icons.account_balance_wallet_rounded,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _MiniCard(
-                            title: 'Goals',
-                            amount: goalsState.goals.fold<double>(0, (sum, g) => sum + g.currentAmount),
-                            currencySymbol: currencySymbol,
-                            color: AppTheme.info,
-                            icon: Icons.savings_rounded,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Quick Actions',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ActionButton(
-                            icon: Icons.add_rounded,
-                            label: 'Add Expense',
-                            onTap: () => context.go('/expenses'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _ActionButton(
-                            icon: Icons.camera_alt_rounded,
-                            label: 'Scan Receipt',
-                            onTap: () {
-                              if (isLocalMode) {
-                                showAiGateDialog(
-                                  context,
-                                  ref,
-                                  message: 'Requires an account — receipt '
-                                      'data is processed via our servers '
-                                      'and never stored.',
-                                );
-                                return;
-                              }
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (context) => const ScanReceiptModal(),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _ActionButton(
-                            icon: Icons.insights_rounded,
-                            label: 'Insights',
-                            onTap: () {
-                              if (isLocalMode) {
-                                showAiGateDialog(
-                                  context,
-                                  ref,
-                                  message: 'Requires an account — spending '
-                                      'insights are generated via our '
-                                      'servers and never stored.',
-                                );
-                                return;
-                              }
-                              context.go('/insights');
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    // Charts section
-                    if (!isLoading && expensesState.expenses.isNotEmpty) ...[
-                      SpendingByCategoryChart(
-                        categoryTotals: _calculateCategoryTotals(expensesState.expenses),
-                        currencySymbol: currencySymbol,
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    if (!isLoading && goalsState.goals.isNotEmpty) ...[
-                      GoalsProgressChart(
-                        goals: goalsState.goals,
-                        currencySymbol: currencySymbol,
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Recent Expenses',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        if (expensesState.expenses.isNotEmpty)
-                          TextButton(
-                            onPressed: () => context.go('/expenses'),
-                            child: const Text('View All'),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    if (isLoading)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: CircularProgressIndicator(),
-                        ),
-                      )
-                    else if (expensesState.expenses.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surface,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Center(
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.receipt_long_rounded,
-                                size: 48,
-                                color: AppTheme.textMuted,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No expenses yet',
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Add your first expense to get started',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    else
-                      Column(
-                        children: expensesState.expenses
-                            .take(5)
-                            .map((expense) => _ExpenseItem(
-                                  expense: expense,
-                                  currencySymbol: currencySymbol,
-                                ))
-                            .toList(),
-                      ),
                   ],
                 ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MiniCard(
+                          title: 'Income',
+                          amount: totalIncome,
+                          currencySymbol: currencySymbol,
+                          color: appColors.success,
+                          icon: Icons.arrow_upward_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _MiniCard(
+                          title: 'Expenses',
+                          amount: totalExpenses,
+                          currencySymbol: currencySymbol,
+                          color: appColors.info,
+                          icon: Icons.arrow_downward_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MiniCard(
+                          title: 'Obligations',
+                          amount: totalObligations,
+                          currencySymbol: currencySymbol,
+                          color: appColors.warning,
+                          icon: Icons.account_balance_wallet_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _MiniCard(
+                          title: 'Goals',
+                          amount: goalsState.goals.fold<double>(0, (sum, g) => sum + g.currentAmount),
+                          currencySymbol: currencySymbol,
+                          color: appColors.info,
+                          icon: Icons.savings_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Quick Actions',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _ActionButton(
+                          icon: Icons.add_rounded,
+                          label: 'Add Expense',
+                          onTap: () => context.go('/expenses'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ActionButton(
+                          icon: Icons.camera_alt_rounded,
+                          label: 'Scan Receipt',
+                          onTap: () {
+                            if (isLocalMode) {
+                              showAiGateDialog(
+                                context,
+                                ref,
+                                message: 'Requires an account — receipt '
+                                    'data is processed via our servers '
+                                    'and never stored.',
+                              );
+                              return;
+                            }
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) => const ScanReceiptModal(),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ActionButton(
+                          icon: Icons.insights_rounded,
+                          label: 'Insights',
+                          onTap: () {
+                            if (isLocalMode) {
+                              showAiGateDialog(
+                                context,
+                                ref,
+                                message: 'Requires an account — spending '
+                                    'insights are generated via our '
+                                    'servers and never stored.',
+                              );
+                              return;
+                            }
+                            context.go('/insights');
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  // Charts section
+                  if (!isLoading && expensesState.expenses.isNotEmpty) ...[
+                    SpendingByCategoryChart(
+                      categoryTotals: _calculateCategoryTotals(expensesState.expenses),
+                      currencySymbol: currencySymbol,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (!isLoading && goalsState.goals.isNotEmpty) ...[
+                    GoalsProgressChart(
+                      goals: goalsState.goals,
+                      currencySymbol: currencySymbol,
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Recent Expenses',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      if (expensesState.expenses.isNotEmpty)
+                        TextButton(
+                          onPressed: () => context.go('/expenses'),
+                          child: const Text('View All'),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  else if (expensesState.expenses.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surface,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.receipt_long_rounded,
+                              size: 48,
+                              color: Theme.of(context).textTheme.bodySmall?.color,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No expenses yet',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Add your first expense to get started',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    Column(
+                      children: expensesState.expenses
+                          .take(5)
+                          .map((expense) => _ExpenseItem(
+                                expense: expense,
+                                currencySymbol: currencySymbol,
+                              ))
+                          .toList(),
+                    ),
+                ]),
               ),
             ),
           ],
@@ -319,70 +348,46 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-class _SummaryCard extends StatelessWidget {
+class _SummaryFigure extends StatelessWidget {
   final String title;
   final double amount;
   final String currencySymbol;
-  final Color color;
+  final Color textColor;
   final IconData icon;
 
-  const _SummaryCard({
+  const _SummaryFigure({
     required this.title,
     required this.amount,
     required this.currencySymbol,
-    required this.color,
+    required this.textColor,
     required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primary,
-            AppTheme.primaryDark,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primary.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
-              ),
-              Icon(icon, color: Colors.white70, size: 24),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '$currencySymbol ${amount.toStringAsFixed(2)}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              title,
+              style: TextStyle(color: textColor.withOpacity(0.7), fontSize: 14),
             ),
+            const SizedBox(width: 8),
+            Icon(icon, color: textColor.withOpacity(0.7), size: 18),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '$currencySymbol ${amount.toStringAsFixed(2)}',
+          style: TextStyle(
+            color: textColor,
+            fontSize: 34,
+            fontWeight: FontWeight.bold,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -407,8 +412,8 @@ class _MiniCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,17 +421,19 @@ class _MiniCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: color.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(icon, color: color, size: 16),
+                child: Icon(icon, color: color, size: 20),
               ),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.bodySmall,
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
             ],
           ),
@@ -456,23 +463,25 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(12),
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
+                color: colorScheme.primary.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(icon, color: AppTheme.primary, size: 22),
+              child: Icon(icon, color: colorScheme.primary, size: 22),
             ),
             const SizedBox(height: 8),
             Text(
@@ -523,29 +532,18 @@ class _ExpenseItem extends StatelessWidget {
     }
   }
 
-  Color _getCategoryColor(Category category) {
-    switch (category) {
-      case Category.GROCERIES:
-        return Colors.green;
-      case Category.TRANSPORT:
-        return Colors.blue;
-      case Category.DINING:
-        return Colors.orange;
-      case Category.ENTERTAINMENT:
-        return Colors.purple;
-      case Category.UTILITIES:
-        return Colors.amber;
-      case Category.SHOPPING:
-        return Colors.pink;
-      case Category.HOUSING:
-        return Colors.brown;
-      case Category.INSURANCE:
-        return Colors.indigo;
-      case Category.LIVING:
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
+  /// Category chip tint, cycled from the theme's token palette rather than
+  /// ad hoc Material colors.
+  Color _getCategoryColor(BuildContext context, Category category) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
+    final palette = [
+      colorScheme.primary,
+      colorScheme.secondary,
+      appColors.warning,
+      appColors.success,
+    ];
+    return palette[category.index % palette.length];
   }
 
   @override
@@ -554,20 +552,20 @@ class _ExpenseItem extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _getCategoryColor(expense.category).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: _getCategoryColor(context, expense.category).withOpacity(0.18),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
               _getCategoryIcon(expense.category),
-              color: _getCategoryColor(expense.category),
+              color: _getCategoryColor(context, expense.category),
               size: 20,
             ),
           ),
@@ -587,9 +585,7 @@ class _ExpenseItem extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   expense.category.displayName,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textMuted,
-                      ),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
@@ -598,7 +594,7 @@ class _ExpenseItem extends StatelessWidget {
             '-$currencySymbol ${expense.amount.toStringAsFixed(2)}',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.error,
+                  color: Theme.of(context).extension<AppColors>()!.infoText,
                 ),
           ),
         ],

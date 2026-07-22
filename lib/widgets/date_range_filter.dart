@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../core/theme.dart';
 
 /// Date range filter widget for filtering lists by date
 /// Follows SKILL.md guidelines for proper widget composition
@@ -15,30 +14,33 @@ class DateRangeFilter extends StatelessWidget {
     required this.onSelect,
   });
 
+  // Two sequential showDatePicker calls instead of showDateRangePicker: the
+  // range picker forces a full-screen dialog in portrait with no year-grid
+  // shortcut (month-by-month paging only), while showDatePicker is a compact
+  // dialog whose header can be tapped to jump straight to a year grid.
   Future<void> _selectDateRange(BuildContext context) async {
-    final DateTimeRange? picked = await showDateRangePicker(
+    final now = DateTime.now();
+    final lastDate = now.add(const Duration(days: 365));
+
+    final start = await showDatePicker(
       context: context,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      initialDateRange: dateRange,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: AppTheme.primary,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      lastDate: lastDate,
+      initialDate: dateRange?.start ?? now,
+      helpText: 'Start date',
     );
+    if (start == null || !context.mounted) return;
 
-    if (picked != null) {
-      onSelect(picked);
-    }
+    final end = await showDatePicker(
+      context: context,
+      firstDate: start,
+      lastDate: lastDate,
+      initialDate: dateRange?.end.isBefore(start) ?? false ? start : (dateRange?.end ?? start),
+      helpText: 'End date',
+    );
+    if (end == null) return;
+
+    onSelect(DateTimeRange(start: start, end: end));
   }
 
   String _formatDateRange(DateTimeRange range) {
@@ -49,39 +51,34 @@ class DateRangeFilter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => _selectDateRange(context),
-              icon: const Icon(Icons.date_range),
-              label: Text(
-                dateRange != null
-                    ? _formatDateRange(dateRange!)
-                    : 'Select date range',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              ),
+    final colorScheme = Theme.of(context).colorScheme;
+    final isActive = dateRange != null;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          onPressed: () => _selectDateRange(context),
+          icon: Icon(isActive ? Icons.event_available_rounded : Icons.calendar_month_rounded),
+          tooltip: isActive ? _formatDateRange(dateRange!) : 'Select date range',
+          style: IconButton.styleFrom(
+            backgroundColor: isActive ? colorScheme.primary.withValues(alpha: 0.15) : colorScheme.surface,
+            foregroundColor: isActive ? colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
+          ),
+        ),
+        if (isActive) ...[
+          const SizedBox(width: 4),
+          IconButton(
+            onPressed: onClear,
+            icon: const Icon(Icons.clear_rounded),
+            tooltip: 'Clear date filter',
+            style: IconButton.styleFrom(
+              backgroundColor: colorScheme.error.withValues(alpha: 0.1),
+              foregroundColor: colorScheme.error,
             ),
           ),
-          if (dateRange != null) ...[
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: onClear,
-              icon: const Icon(Icons.clear),
-              tooltip: 'Clear date filter',
-              style: IconButton.styleFrom(
-                backgroundColor: AppTheme.error.withOpacity(0.1),
-                foregroundColor: AppTheme.error,
-              ),
-            ),
-          ],
         ],
-      ),
+      ],
     );
   }
 }

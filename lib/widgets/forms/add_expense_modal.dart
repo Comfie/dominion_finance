@@ -58,17 +58,6 @@ class _AddExpenseModalState extends ConsumerState<AddExpenseModal> {
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppTheme.primary,
-              surface: AppTheme.surface,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
@@ -104,7 +93,7 @@ class _AddExpenseModalState extends ConsumerState<AddExpenseModal> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to ${isEditing ? 'update' : 'create'} expense'),
-          backgroundColor: AppTheme.error,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -113,14 +102,15 @@ class _AddExpenseModalState extends ConsumerState<AddExpenseModal> {
   @override
   Widget build(BuildContext context) {
     final personsState = ref.watch(personsProvider);
+    final appColors = Theme.of(context).extension<AppColors>()!;
 
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -183,7 +173,7 @@ class _AddExpenseModalState extends ConsumerState<AddExpenseModal> {
                   labelText: 'Category',
                   prefixIcon: Icon(Icons.category_outlined),
                 ),
-                dropdownColor: AppTheme.surfaceLight,
+                dropdownColor: appColors.surfaceElevated,
                 items: Category.values.map((category) {
                   return DropdownMenuItem(
                     value: category,
@@ -219,7 +209,7 @@ class _AddExpenseModalState extends ConsumerState<AddExpenseModal> {
                     labelText: 'Person (optional)',
                     prefixIcon: Icon(Icons.person_outlined),
                   ),
-                  dropdownColor: AppTheme.surfaceLight,
+                  dropdownColor: appColors.surfaceElevated,
                   items: [
                     const DropdownMenuItem(
                       value: null,

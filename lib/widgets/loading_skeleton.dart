@@ -57,9 +57,9 @@ class _LoadingSkeletonState extends State<LoadingSkeleton>
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
               colors: [
-                AppTheme.textMuted.withOpacity(0.1),
-                AppTheme.textMuted.withOpacity(0.2),
-                AppTheme.textMuted.withOpacity(0.1),
+                (Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey).withValues(alpha: 0.1),
+                (Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey).withValues(alpha: 0.2),
+                (Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey).withValues(alpha: 0.1),
               ],
               stops: [
                 _animation.value - 0.3,
@@ -84,22 +84,15 @@ class CardSkeleton extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
         children: [
           LoadingSkeleton(
-            width: 48,
-            height: 48,
-            borderRadius: BorderRadius.circular(12),
+            width: 44,
+            height: 44,
+            borderRadius: BorderRadius.circular(16),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -161,15 +154,8 @@ class GoalCardSkeleton extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,9 +163,9 @@ class GoalCardSkeleton extends StatelessWidget {
           Row(
             children: [
               LoadingSkeleton(
-                width: 48,
-                height: 48,
-                borderRadius: BorderRadius.circular(12),
+                width: 44,
+                height: 44,
+                borderRadius: BorderRadius.circular(16),
               ),
               const SizedBox(width: 16),
               Expanded(
