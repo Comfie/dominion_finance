@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/storage_mode.dart';
-import '../core/theme.dart';
 
 /// Shows a notice explaining that an AI feature (receipt scanning, spending
 /// insights) requires an account, since it's processed via the remote API.
@@ -31,7 +30,9 @@ Future<void> showAiGateDialog(
               context.go('/login');
             }
           },
-          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+          ),
           child: const Text('Sign In'),
         ),
       ],
