@@ -8,6 +8,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(home: Scaffold(body: AppErrorState())),
     );
+    await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Something went wrong'), findsOneWidget);
     expect(find.text('An unexpected error occurred. Please try again.'), findsOneWidget);
@@ -20,6 +21,7 @@ void main() {
         home: Scaffold(body: AppErrorState(message: 'Could not load your bills.')),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Could not load your bills.'), findsOneWidget);
   });
@@ -31,6 +33,7 @@ void main() {
         home: Scaffold(body: AppErrorState(onRetry: () => retried = true)),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 200));
 
     // `ElevatedButton.icon` returns `_ElevatedButtonWithIcon`, a subclass of
     // `ElevatedButton` — `find.byType`/`find.widgetWithText` match by exact
@@ -52,6 +55,7 @@ void main() {
         home: const Scaffold(body: AppErrorState()),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 200));
 
     final icon = tester.widget<Icon>(find.byIcon(Icons.error_outline_rounded));
     expect(icon.color, Colors.deepOrange);
