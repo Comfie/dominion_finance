@@ -1,6 +1,8 @@
 // lib/screens/settings/family_management_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../models/person.dart';
 import '../../providers/expenses_provider.dart';
@@ -77,23 +79,20 @@ class _FamilyManagementScreenState
   }
 
   Future<void> _deletePerson(String id, String name) async {
-    final confirmed = await _confirmDeletePerson(context, name);
-    if (confirmed && mounted) {
-      final success = await ref.read(personsProvider.notifier).deletePerson(id);
-      if (mounted) {
-        final colorScheme = Theme.of(context).colorScheme;
-        final appColors = Theme.of(context).extension<AppColors>()!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              success
-                  ? 'Family member deleted'
-                  : 'Failed to delete family member',
-            ),
-            backgroundColor: success ? appColors.success : colorScheme.error,
+    final success = await ref.read(personsProvider.notifier).deletePerson(id);
+    if (mounted) {
+      final colorScheme = Theme.of(context).colorScheme;
+      final appColors = Theme.of(context).extension<AppColors>()!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'Family member deleted'
+                : 'Failed to delete family member',
           ),
-        );
-      }
+          backgroundColor: success ? appColors.success : colorScheme.error,
+        ),
+      );
     }
   }
 
@@ -110,11 +109,26 @@ class _FamilyManagementScreenState
     final settingsState = ref.watch(settingsProvider);
     final currencySymbol = settingsState.settings?.currencySymbol ?? 'R';
     final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
+    // The teal hero draws behind the (transparent) status bar, so this
+    // screen needs dark status icons regardless of theme brightness; the
+    // other tabs' AppBars re-assert the theme's overlay style when shown.
+    final overlayStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: appColors.surfaceElevated,
+      systemNavigationBarIconBrightness:
+          Theme.of(context).brightness == Brightness.dark
+              ? Brightness.light
+              : Brightness.dark,
+    );
 
     return Scaffold(
       body: personsState.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
+          : AnnotatedRegion<SystemUiOverlayStyle>(
+              value: overlayStyle,
               child: RefreshIndicator(
                 onRefresh: _onRefresh,
                 child: CustomScrollView(
@@ -127,6 +141,11 @@ class _FamilyManagementScreenState
                           children: [
                             Row(
                               children: [
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back_rounded),
+                                  color: colorScheme.onPrimary,
+                                  onPressed: () => context.pop(),
+                                ),
                                 Text(
                                   'Family',
                                   style: TextStyle(
