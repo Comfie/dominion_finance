@@ -89,19 +89,16 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
   }
 
   Future<void> _deleteIncome(String id) async {
-    final confirmed = await _confirmDelete(context);
-    if (confirmed && mounted) {
-      final success = await ref.read(incomesProvider.notifier).deleteIncome(id);
-      if (mounted) {
-        final colorScheme = Theme.of(context).colorScheme;
-        final appColors = Theme.of(context).extension<AppColors>()!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Income deleted' : 'Failed to delete income'),
-            backgroundColor: success ? appColors.success : colorScheme.error,
-          ),
-        );
-      }
+    final success = await ref.read(incomesProvider.notifier).deleteIncome(id);
+    if (mounted) {
+      final colorScheme = Theme.of(context).colorScheme;
+      final appColors = Theme.of(context).extension<AppColors>()!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Income deleted' : 'Failed to delete income'),
+          backgroundColor: success ? appColors.success : colorScheme.error,
+        ),
+      );
     }
   }
 

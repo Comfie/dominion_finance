@@ -69,36 +69,15 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
   /// Delete goal with confirmation
   Future<void> _deleteGoal(String id) async {
     final colorScheme = Theme.of(context).colorScheme;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Goal'),
-        content: const Text('Are you sure you want to delete this savings goal?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: colorScheme.error),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      final success = await ref.read(goalsProvider.notifier).deleteGoal(id);
-      if (mounted) {
-        final appColors = Theme.of(context).extension<AppColors>()!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Goal deleted' : 'Failed to delete goal'),
-            backgroundColor: success ? appColors.success : colorScheme.error,
-          ),
-        );
-      }
+    final success = await ref.read(goalsProvider.notifier).deleteGoal(id);
+    if (mounted) {
+      final appColors = Theme.of(context).extension<AppColors>()!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Goal deleted' : 'Failed to delete goal'),
+          backgroundColor: success ? appColors.success : colorScheme.error,
+        ),
+      );
     }
   }
 

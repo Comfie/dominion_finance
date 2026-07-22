@@ -64,36 +64,15 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
   Future<void> _deleteExpense(String id) async {
     final colorScheme = Theme.of(context).colorScheme;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Expense'),
-        content: const Text('Are you sure you want to delete this expense?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: colorScheme.error),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      final success = await ref.read(expensesProvider.notifier).deleteExpense(id);
-      if (mounted) {
-        final appColors = Theme.of(context).extension<AppColors>()!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Expense deleted' : 'Failed to delete expense'),
-            backgroundColor: success ? appColors.success : colorScheme.error,
-          ),
-        );
-      }
+    final success = await ref.read(expensesProvider.notifier).deleteExpense(id);
+    if (mounted) {
+      final appColors = Theme.of(context).extension<AppColors>()!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Expense deleted' : 'Failed to delete expense'),
+          backgroundColor: success ? appColors.success : colorScheme.error,
+        ),
+      );
     }
   }
 
