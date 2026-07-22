@@ -12,6 +12,7 @@ import '../screens/obligations/obligations_screen.dart';
 import '../screens/goals/goals_screen.dart';
 import '../screens/insights/insights_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/settings/family_management_screen.dart';
 import '../widgets/main_scaffold.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -49,6 +50,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/family',
+        builder: (context, state) => const FamilyManagementScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) => MainScaffold(child: child),

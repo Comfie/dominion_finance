@@ -332,6 +332,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             : 'Not set',
                         onTap: () => _editMonthlyBudget(settings),
                       ),
+                      _SettingsTile(
+                        icon: Icons.people_rounded,
+                        title: 'Family Members',
+                        subtitle: '${ref.watch(personsProvider).persons.length} '
+                            '${ref.watch(personsProvider).persons.length == 1 ? 'member' : 'members'}',
+                        onTap: () => context.push('/family'),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
