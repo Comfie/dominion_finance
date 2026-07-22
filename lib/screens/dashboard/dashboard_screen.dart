@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants.dart';
+import '../../core/dashboard_insights.dart';
 import '../../core/storage_mode.dart';
 import '../../core/theme.dart';
 import '../../models/expense.dart';
@@ -74,11 +75,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         .fold<double>(0, (sum, o) => sum + o.amount);
 
     final freeCashFlow = totalIncome - totalExpenses - totalObligations;
+    final totalGoalsSaved = goalsState.goals.fold<double>(0, (sum, g) => sum + g.currentAmount);
 
     final isLoading = expensesState.isLoading ||
                       incomesState.isLoading ||
                       obligationsState.isLoading ||
                       goalsState.isLoading;
+
+    final now = DateTime.now();
+    final nextAction = computeNextAction(
+      freeCashFlow: freeCashFlow,
+      totalIncome: totalIncome,
+      totalExpenses: totalExpenses,
+      totalObligations: totalObligations,
+      obligations: obligationsState.obligations,
+      today: now,
+      currencySymbol: currencySymbol,
+    );
+    final upcomingBills = upcomingObligations(obligationsState.obligations, now);
+    final recentExpenses = expensesState.expenses.take(5).toList();
 
     // The emerald hero draws behind the (transparent) status bar, so this
     // screen needs dark status icons regardless of theme brightness; the
@@ -137,12 +152,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    _SummaryFigure(
-                      title: 'Free Cash Flow',
+                    _HeroFigure(
                       amount: freeCashFlow,
+                      totalIncome: totalIncome,
+                      totalExpenses: totalExpenses,
                       currencySymbol: currencySymbol,
                       textColor: colorScheme.onPrimary,
-                      icon: freeCashFlow >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
                     ),
                   ],
                 ),
@@ -152,58 +167,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _MiniCard(
-                          title: 'Income',
-                          amount: totalIncome,
-                          currencySymbol: currencySymbol,
-                          color: appColors.success,
-                          icon: Icons.arrow_upward_rounded,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _MiniCard(
-                          title: 'Expenses',
-                          amount: totalExpenses,
-                          currencySymbol: currencySymbol,
-                          color: appColors.info,
-                          icon: Icons.arrow_downward_rounded,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _MiniCard(
-                          title: 'Obligations',
-                          amount: totalObligations,
-                          currencySymbol: currencySymbol,
-                          color: appColors.warning,
-                          icon: Icons.account_balance_wallet_rounded,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _MiniCard(
-                          title: 'Goals',
-                          amount: goalsState.goals.fold<double>(0, (sum, g) => sum + g.currentAmount),
-                          currencySymbol: currencySymbol,
-                          color: appColors.info,
-                          icon: Icons.savings_rounded,
-                        ),
-                      ),
-                    ],
-                  ),
+                  _NextActionCallout(action: nextAction),
                   const SizedBox(height: 24),
-                  Text(
-                    'Quick Actions',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+                  const _SectionHeader(title: 'Quick Actions'),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -214,7 +180,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           onTap: () => context.go('/expenses'),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: _ActionButton(
                           icon: Icons.camera_alt_rounded,
@@ -239,7 +205,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           },
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: _ActionButton(
                           icon: Icons.insights_rounded,
@@ -261,13 +227,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  // Charts section
+                  const SizedBox(height: 28),
+                  _AtAGlanceStrip(
+                    currencySymbol: currencySymbol,
+                    totalIncome: totalIncome,
+                    totalExpenses: totalExpenses,
+                    totalObligations: totalObligations,
+                    totalGoals: totalGoalsSaved,
+                  ),
+                  const SizedBox(height: 28),
+                  // Spending section: chart + upcoming bills grouped with a
+                  // tight gap (no outer header — the chart already renders
+                  // its own "Spending by Category" title; see this plan's
+                  // Global Constraints note).
                   if (!isLoading && expensesState.expenses.isNotEmpty) ...[
                     SpendingByCategoryChart(
                       categoryTotals: _calculateCategoryTotals(expensesState.expenses),
                       currencySymbol: currencySymbol,
                     ),
+                    if (upcomingBills.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _UpcomingBillsCard(upcoming: upcomingBills, currencySymbol: currencySymbol),
+                    ],
+                    const SizedBox(height: 16),
+                  ] else if (!isLoading && upcomingBills.isNotEmpty) ...[
+                    _UpcomingBillsCard(upcoming: upcomingBills, currencySymbol: currencySymbol),
                     const SizedBox(height: 16),
                   ],
                   if (!isLoading && goalsState.goals.isNotEmpty) ...[
@@ -275,21 +259,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       goals: goalsState.goals,
                       currencySymbol: currencySymbol,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 28),
                   ],
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Recent Expenses',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      if (expensesState.expenses.isNotEmpty)
-                        TextButton(
-                          onPressed: () => context.go('/expenses'),
-                          child: const Text('View All'),
-                        ),
-                    ],
+                  _SectionHeader(
+                    title: 'Recent Expenses',
+                    onViewAll: expensesState.expenses.isNotEmpty
+                        ? () => context.go('/expenses')
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   if (isLoading)
@@ -330,13 +306,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     )
                   else
                     Column(
-                      children: expensesState.expenses
-                          .take(5)
-                          .map((expense) => _ExpenseItem(
-                                expense: expense,
-                                currencySymbol: currencySymbol,
-                              ))
-                          .toList(),
+                      children: [
+                        for (var i = 0; i < recentExpenses.length; i++) ...[
+                          _ExpenseItem(
+                            expense: recentExpenses[i],
+                            currencySymbol: currencySymbol,
+                          ),
+                          if (i != recentExpenses.length - 1)
+                            Divider(
+                              height: 1,
+                              color: Theme.of(context).dividerTheme.color,
+                            ),
+                        ],
+                      ],
                     ),
                 ]),
               ),
@@ -348,19 +330,44 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-class _SummaryFigure extends StatelessWidget {
+class _SectionHeader extends StatelessWidget {
   final String title;
+  final VoidCallback? onViewAll;
+
+  const _SectionHeader({required this.title, this.onViewAll});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+        if (onViewAll != null)
+          TextButton(onPressed: onViewAll, child: const Text('View All')),
+      ],
+    );
+  }
+}
+
+class _HeroFigure extends StatelessWidget {
   final double amount;
+  final double totalIncome;
+  final double totalExpenses;
   final String currencySymbol;
   final Color textColor;
-  final IconData icon;
 
-  const _SummaryFigure({
-    required this.title,
+  const _HeroFigure({
     required this.amount,
+    required this.totalIncome,
+    required this.totalExpenses,
     required this.currencySymbol,
     required this.textColor,
-    required this.icon,
   });
 
   @override
@@ -368,81 +375,95 @@ class _SummaryFigure extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              title,
-              style: TextStyle(color: textColor.withOpacity(0.7), fontSize: 14),
-            ),
-            const SizedBox(width: 8),
-            Icon(icon, color: textColor.withOpacity(0.7), size: 18),
-          ],
+        Text(
+          'Left to spend this month',
+          style: TextStyle(
+            color: textColor.withOpacity(0.7),
+            fontSize: 13,
+            letterSpacing: 0.4,
+          ),
         ),
         const SizedBox(height: 8),
         Text(
           '$currencySymbol ${amount.toStringAsFixed(2)}',
           style: TextStyle(
             color: textColor,
-            fontSize: 34,
+            fontSize: 44,
             fontWeight: FontWeight.bold,
           ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Icon(Icons.arrow_upward_rounded, color: textColor.withOpacity(0.7), size: 14),
+            const SizedBox(width: 4),
+            Text(
+              'Income $currencySymbol ${totalIncome.toStringAsFixed(2)}',
+              style: TextStyle(color: textColor.withOpacity(0.7), fontSize: 13),
+            ),
+            const SizedBox(width: 16),
+            Icon(Icons.arrow_downward_rounded, color: textColor.withOpacity(0.7), size: 14),
+            const SizedBox(width: 4),
+            Text(
+              'Expenses $currencySymbol ${totalExpenses.toStringAsFixed(2)}',
+              style: TextStyle(color: textColor.withOpacity(0.7), fontSize: 13),
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-class _MiniCard extends StatelessWidget {
-  final String title;
-  final double amount;
-  final String currencySymbol;
-  final Color color;
-  final IconData icon;
+class _NextActionCallout extends StatelessWidget {
+  final NextAction action;
 
-  const _MiniCard({
-    required this.title,
-    required this.amount,
-    required this.currencySymbol,
-    required this.color,
-    required this.icon,
-  });
+  const _NextActionCallout({required this.action});
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
+    final Color tint;
+    final IconData icon;
+    switch (action.severity) {
+      case NextActionSeverity.error:
+        tint = colorScheme.error;
+        icon = Icons.error_outline_rounded;
+        break;
+      case NextActionSeverity.warning:
+        tint = appColors.warning;
+        icon = Icons.event_rounded;
+        break;
+      case NextActionSeverity.success:
+        tint = appColors.success;
+        icon = Icons.check_circle_outline_rounded;
+        break;
+      case NextActionSeverity.info:
+        tint = appColors.info;
+        icon = Icons.edit_note_rounded;
+        break;
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
+        color: tint.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.18),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '$currencySymbol ${amount.toStringAsFixed(2)}',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+          Icon(icon, color: tint, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              action.message,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: tint,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
           ),
         ],
       ),
@@ -467,32 +488,181 @@ class _ActionButton extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(icon, color: colorScheme.primary, size: 22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: colorScheme.primary,
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
+            child: Icon(icon, color: colorScheme.onPrimary, size: 24),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AtAGlanceStrip extends StatelessWidget {
+  final String currencySymbol;
+  final double totalIncome;
+  final double totalExpenses;
+  final double totalObligations;
+  final double totalGoals;
+
+  const _AtAGlanceStrip({
+    required this.currencySymbol,
+    required this.totalIncome,
+    required this.totalExpenses,
+    required this.totalObligations,
+    required this.totalGoals,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = Theme.of(context).extension<AppColors>()!;
+
+    final items = [
+      (label: 'Income', amount: totalIncome, icon: Icons.arrow_upward_rounded, color: appColors.success),
+      (label: 'Expenses', amount: totalExpenses, icon: Icons.arrow_downward_rounded, color: appColors.info),
+      (label: 'Obligations', amount: totalObligations, icon: Icons.account_balance_wallet_rounded, color: appColors.warning),
+      (label: 'Goals', amount: totalGoals, icon: Icons.savings_rounded, color: appColors.info),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            if (i > 0)
+              VerticalDivider(
+                color: Theme.of(context).dividerTheme.color,
+                thickness: 1,
+                width: 1,
+                indent: 8,
+                endIndent: 8,
+              ),
+            Expanded(
+              child: Column(
+                children: [
+                  Icon(items[i].icon, color: items[i].color, size: 16),
+                  const SizedBox(height: 6),
+                  Text(
+                    items[i].label,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11),
                   ),
-              textAlign: TextAlign.center,
+                  const SizedBox(height: 4),
+                  Text(
+                    '$currencySymbol ${items[i].amount.toStringAsFixed(2)}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
-        ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingBillsCard extends StatelessWidget {
+  final List<UpcomingObligation> upcoming;
+  final String currencySymbol;
+
+  const _UpcomingBillsCard({required this.upcoming, required this.currencySymbol});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Upcoming Bills',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          for (var i = 0; i < upcoming.length; i++) ...[
+            _UpcomingBillRow(upcoming: upcoming[i], currencySymbol: currencySymbol),
+            if (i != upcoming.length - 1)
+              Divider(height: 1, color: Theme.of(context).dividerTheme.color),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingBillRow extends StatelessWidget {
+  final UpcomingObligation upcoming;
+  final String currencySymbol;
+
+  const _UpcomingBillRow({required this.upcoming, required this.currencySymbol});
+
+  String _dueLabel(int days) {
+    if (days <= 0) return 'due today';
+    if (days == 1) return 'due in 1 day';
+    return 'due in $days days';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final obligation = upcoming.obligation;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  obligation.name,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _dueLabel(upcoming.daysUntilDue),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '$currencySymbol ${obligation.amount.toStringAsFixed(2)}',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }
@@ -548,13 +718,8 @@ class _ExpenseItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
           Container(
