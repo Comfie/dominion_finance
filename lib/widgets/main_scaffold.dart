@@ -69,26 +69,31 @@ class MainScaffold extends StatelessWidget {
               children: [
                 _NavItem(
                   icon: Icons.dashboard_rounded,
+                  label: 'Home',
                   isSelected: _getCurrentIndex(context) == 0,
                   onTap: () => _onTap(context, 0),
                 ),
                 _NavItem(
                   icon: Icons.receipt_long_rounded,
+                  label: 'Expenses',
                   isSelected: _getCurrentIndex(context) == 1,
                   onTap: () => _onTap(context, 1),
                 ),
                 _NavItem(
                   icon: Icons.payments_rounded,
+                  label: 'Bills',
                   isSelected: _getCurrentIndex(context) == 2,
                   onTap: () => _onTap(context, 2),
                 ),
                 _NavItem(
                   icon: Icons.savings_rounded,
+                  label: 'Goals',
                   isSelected: _getCurrentIndex(context) == 3,
                   onTap: () => _onTap(context, 3),
                 ),
                 _NavItem(
                   icon: Icons.settings_rounded,
+                  label: 'Settings',
                   isSelected: _getCurrentIndex(context) == 4,
                   onTap: () => _onTap(context, 4),
                 ),
@@ -103,11 +108,13 @@ class MainScaffold extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
+  final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _NavItem({
     required this.icon,
+    required this.label,
     required this.isSelected,
     required this.onTap,
   });
@@ -122,16 +129,28 @@ class _NavItem extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.symmetric(horizontal: isSelected ? 16 : 12, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected ? colorScheme.primary : Colors.transparent,
-          shape: BoxShape.circle,
+          borderRadius: BorderRadius.circular(999),
         ),
-        child: Icon(
-          icon,
-          color: isSelected ? colorScheme.onPrimary : unselectedColor,
-          size: 24,
-        ),
+        child: isSelected
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, color: colorScheme.onPrimary, size: 22),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: colorScheme.onPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              )
+            : Icon(icon, color: unselectedColor, size: 24),
       ),
     );
   }
